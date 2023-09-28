@@ -19,7 +19,8 @@
 # with dartt. If not, see <https://www.gnu.org/licenses/>.
 
 [build-system]
-requires = ["hatchling", "hatch-fancy-pypi-readme", "hatch-vcs"]
+requires = ["hatchling", "hatch-fancy-pypi-readme", "hatch-requirements-txt",
+            "hatch-vcs"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.hooks.vcs]
@@ -27,7 +28,7 @@ version-file = "_version.py"
 
 [project]
 name = "dartt"
-dynamic = ["readme", "version"]
+dynamic = ["dependencies", "readme", "version"]
 description = 'Disc Archive, Rip, Transcode and Tag'
 requires-python = ">=3.7"
 license = "GPL-3.0-or-later"
@@ -46,7 +47,6 @@ classifiers = [
   "Programming Language :: Python :: Implementation :: CPython",
   "Programming Language :: Python :: Implementation :: PyPy",
 ]
-dependencies = []
 
 [project.urls]
 Documentation = "https://github.com/greened/dartt#readme"
@@ -228,6 +228,9 @@ replacement = '\1_:https://github.com/greened/dartt/tree/main/\g<2>'
 [[tool.hatch.metadata.hooks.fancy-pypi-readme.substitutions]]
 pattern = ":issue:`(\\d+)`"
 replacement = "#\\1_: https://github.com/greened/dartt/issues/\\1"
+
+[tool.hatch.metadata.hooks.requirements_txt]
+files = ["requirements.txt"]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/dartt"]
