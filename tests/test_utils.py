@@ -24,17 +24,17 @@ import dartt.utils as utils
 import pytest
 
 @pytest.mark.parametrize(
-    'value,expected',
+    'Value,Expected',
     [('y', True), ('Y', True), ('yes', True), ('YES', True), ('n', False),
      ('N', False), ('no', False), ('NO', False)]
 )
 def test_yesno(
         monkeypatch,
-        value,
-        expected
+        Value,
+        Expected
 ):
-    monkeypatch.setattr('builtins.input', lambda _: value)
-    assert utils.yesno(f'Test {value}') == expected
+    monkeypatch.setattr('builtins.input', lambda _: Value)
+    assert utils.yesno(f'Test {Value}') == Expected
 
 def test_yesno_loop(
         monkeypatch,
@@ -46,81 +46,95 @@ def test_yesno_loop(
         lambda _, LoopCounter = LoopCounter: LoopCounter.generateInput()
     )
 
-    result = utils.yesno('Test yesno loop')
-    assert result == True
+    Result = utils.yesno('Test yesno loop')
+    assert Result == True
 
     LoopCounter.validate()
 
 @pytest.mark.parametrize(
-    'value',
+    'Value',
     ['one', 'two', 'three']
 )
 def test_query(
         monkeypatch,
         capsys,
-        value
+        Value
 ):
-    def inpt(msg, value):
+    def inpt(msg, Value):
         print(msg)
-        return value
+        return Value
 
-    monkeypatch.setattr('builtins.input', lambda _: inpt(_, value))
-    result = utils.query(f'{value}')
-    captured = capsys.readouterr()
-    assert captured.out == f'{value}: \n'
-    assert result == value
+    monkeypatch.setattr('builtins.input', lambda _: inpt(_, Value))
+    Result = utils.query(f'{Value}')
+    Captured = capsys.readouterr()
+    assert Captured.out == f'{Value}: \n'
+    assert Result == Value
 
 @pytest.mark.parametrize(
-    'value,expected',
-    [('', 'default'), ('one', 'one'), ('two', 'two'), ('three', 'three')]
+    'Default',
+    [ 'default', 'one', 'two', 'three', '0', '1', '2']
+)
+@pytest.mark.parametrize(
+    'Value',
+    [ '', 'one', 'two', 'three', '0', '1', '2' ]
 )
 def test_query_default(
         monkeypatch,
         capsys,
-        value,
-        expected
+        Default,
+        Value
 ):
-    def inpt(msg, value):
+    def inpt(msg, Value):
         print(msg)
-        return value
+        return Value
 
-    monkeypatch.setattr('builtins.input', lambda _: inpt(_, value))
-    result = utils.query(f'{value}', 'default')
-    captured = capsys.readouterr()
-    assert captured.out == f'{value} [default]: \n'
-    assert result == expected
+    monkeypatch.setattr('builtins.input', lambda _: inpt(_, Value))
+
+    Expected = Value if Value != '' else Default
+    Result = utils.query(f'{Value}', Default)
+    Captured = capsys.readouterr()
+    assert Captured.out == f'{Value} [{Default}]: \n'
+    assert Result == Expected
 
 @pytest.mark.parametrize(
-    'value,expected',
+    'Value,Expected',
     [('0', 'one'), ('1', 'two'), ('2', 'three')]
 )
 def test_menu(
         monkeypatch,
         capsys,
-        value,
-        expected
+        Value,
+        Expected
 ):
-    monkeypatch.setattr('builtins.input', lambda _: value)
-    result = utils.menu(f'{value}', ['one', 'two', 'three'])
-    captured = capsys.readouterr()
-    assert captured.out == '[0] one\n[1] two\n[2] three\n'
-    assert result == expected
+    monkeypatch.setattr('builtins.input', lambda _: Value)
+    Result = utils.menu(f'{Value}', ['one', 'two', 'three'])
+    Captured = capsys.readouterr()
+    assert Captured.out == f'[0] one\n[1] two\n[2] three\n'
+    assert Result == Expected
 
 @pytest.mark.parametrize(
-    'value,expected',
-    [('', 'two'), ('0', 'one'), ('1', 'two'), ('2', 'three')]
+    'Default',
+    [ 'one', 'two', 'three']
+)
+@pytest.mark.parametrize(
+    'Value,Expected',
+    [('', ''), ('0', 'one'), ('1', 'two'), ('2', 'three')]
 )
 def test_menu_default(
         monkeypatch,
         capsys,
-        value,
-        expected
+        Default,
+        Value,
+        Expected
 ):
-    monkeypatch.setattr('builtins.input', lambda _: value)
-    result = utils.menu(f'{value}', ['one', 'two', 'three'], 'two')
-    captured = capsys.readouterr()
-    assert captured.out == '[0] one\n[1] two\n[2] three\n'
-    assert result == expected
+    if Value == '':
+        Expected = Default
+
+    monkeypatch.setattr('builtins.input', lambda _: Value)
+    Result = utils.menu(f'{Value}', ['one', 'two', 'three'], Default)
+    Captured = capsys.readouterr()
+    assert Captured.out == '[0] one\n[1] two\n[2] three\n'
+    assert Result == Expected
 
 def test_menu_loop(
         monkeypatch,
@@ -132,7 +146,7 @@ def test_menu_loop(
         lambda _, LoopCounter = LoopCounter: LoopCounter.generateInput()
     )
 
-    result = utils.menu(f'Test menu loop', ['one', 'two', 'three'])
-    assert result == 'three'
+    Result = utils.menu(f'Test menu loop', ['one', 'two', 'three'])
+    assert Result == 'three'
 
     LoopCounter.validate()

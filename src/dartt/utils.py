@@ -25,65 +25,69 @@ Utility functions for common tasks.
 from collections.abc import Mapping, Sequence
 
 def yesno(
-        msg: str
+        Msg: str
 ) -> bool:
     """Prompt the user with a yes/no question.
 
-    :param msg: The message to print (a ? will be appended)
+    :param Msg: The message to print (a ? will be appended)
     :returns: True if the answer is 'yes,' False otherwise
 
     """
     while True:
-        answer = input(f'{msg}? (y/n) ')
-        if answer.lower() in ["y","yes"]:
+        Answer = input(f'{Msg}? (y/n) ')
+        if Answer.lower() in ["y","yes"]:
             return True
-        elif answer.lower() in ["n","no"]:
+        elif Answer.lower() in ["n","no"]:
             return False
 
 def query(
-        msg: str, default: str = None
+        Msg: str,
+        Default: str = None
 ) -> str:
     """Ask the user for input, providing a default value.
 
-    :param msg: The query message
-    :param default: The default value
+    :param Msg: The query message
+    :param Default: The default value
     :returns: The user's input
 
     """
 
-    message = f'{msg} [{default}]' if default else msg
+    Message = (f'{Msg} [{Default}]' if Default is not None and len(Default) > 0
+               else Msg)
     while True:
-        result = input(f'{message}: ') or default
-        if result:
-            return result
+        Result = input(f'{Message}: ') or Default
+        if Result:
+            return Result
 
 def menu(
-        msg: str,
-        choices: Sequence[str],
-        default: str = None
+        Msg: str,
+        Choices: Sequence[str],
+        Default: str = None
 ) -> str:
     """Show the user a menu of choices and prompt for input.
 
-    :param msg: The query message
-    :param choices: A sequence containing the choices
+    :param Msg: The query message
+    :param Choices: A sequence containing the choices
     :returns: The user's choice
 
     """
 
-    choices = { k:v for (k,v) in enumerate(choices)}
+    Choices = { K:V for (K,V) in enumerate(Choices) }
 
-    default_key = (
-        [ k for k,v in choices.items() if v == default ][0] if default else None
-    )
+    DefaultKey = None
+    if Default is not None and len(Default) > 0:
+        Keys = [ f'{K}' for K,V in Choices.items() if V == Default ]
+        assert len(Keys) == 1, f'{len(Keys)} matches to {Default}'
+        DefaultKey = Keys[0]
 
     while True:
-        for (key, value) in choices.items():
-            print(f'[{key}] {value}')
+        for (Key, Value) in Choices.items():
+            print(f'[{Key}] {Value}')
 
-        choice = query(msg, default_key)
+        Choice = query(Msg, DefaultKey)
         try:
-            value = choices[int(choice)]
+            Value = Choices[int(Choice)]
         except:
-            print(f'Invalid choice "{choice}"')
+            print(f'Invalid choice "{Choice}"')
             continue
-        return value
+        return Value
