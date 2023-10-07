@@ -18,5 +18,44 @@
 # You should have received a copy of the GNU Affero General Public License along
 # with dartt. If not, see <https://www.gnu.org/licenses/>.
 
-def main(args=None):
-    pass
+import argparse
+from collections.abc import Iterable
+import logging
+from pathlib import Path
+import sys
+
+from dartt.config import readConfig
+from dartt.device import detectOpticalDrives
+
+def parseArgs(
+        Args: Iterable
+) -> argparse.Namespace:
+    Parser = argparse.ArgumentParser(
+        prog='dartt',
+        description='Disc Archive, Rip, Transcode and Tag'
+    )
+
+    Parser.add_argument(
+        '--msg-level',
+        choices=['debug', 'info', 'warning', 'error'],
+        default='error'
+    )
+
+    return Parser.parse_args(Args)
+
+def main(
+        Args=[]
+):
+    ParsedArgs = parseArgs(Args)
+
+    LogLevel = ParsedArgs.msg_level
+    NumericLogLevel = getattr(logging, LogLevel.upper())
+
+    logging.basicConfig(level=NumericLogLevel)
+
+    OpticalDrives = detectOpticalDrives()
+
+    Config = readConfig()
+
+    for Drive in OpticalDrives:
+        Media = Drive.open()
