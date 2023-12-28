@@ -18,6 +18,7 @@
 # You should have received a copy of the GNU Affero General Public License along
 # with dartt. If not, see <https://www.gnu.org/licenses/>.
 
+import ast
 import logging
 from pathlib import Path
 import sh
@@ -247,15 +248,46 @@ class Config:
             if utils.yesno('No configuration found, create one'):
                 self._update(*self._create())
 
-        for Config in self.configSearchPaths:
-            if Config.exists():
-                self._items.update(tomllib.load(Config))
+        for ConfigFile in self.configSearchPaths:
+            if ConfigFile.exists():
+                with open(ConfigFile, 'rb') as File:
+                    self._items.update(tomllib.load(File))
 
     def _update(self, ConfigDict, ConfigPath):
         """Update the config file in the user's home directory.
 
         :returns: Dictionary containing the updated config contents
         """
+
+        MusicbrainzUser = utils.query(
+            'Musicbrainz user name',
+            'NONE'
+        )
+
+        ConfigDict['musicbrainz']['user'] = (
+            MusicbrainzUser if MusicbrainzUser != 'NONE' else ''
+        )
+
+        if ConfigDict['musicbrainz']['user']:
+            PassCmd = ''
+            PassCmdList = []
+            while len(PassCmd) == 0:
+                PassCmd = utils.query(
+                    'Musicbrainz password command',
+                    '["pass", "musicbrainz.org/password"]'
+                )
+                try:
+                    PassCmdList = ast.literal_eval(PassCmd)
+                except:
+                    # Try again
+                    PassCmd = ''
+                else:
+                    if (not PassCmdList or not isinstance(PassCmdList, list) or
+                        not all(isinstance(Elem, str) for Elem in PassCmdList)):
+                        # Try again.
+                        PassCmd = ''
+
+            ConfigDict['musicbrainz']['password_cmd'] = PassCmdList
 
         def found(Command: str):
             try:
@@ -394,6 +426,10 @@ class Config:
         ))
 
         ConfigDict = {
+            'musicbrainz': {
+                'user': '',
+                'password_cmd': '',
+            },
             'base_output_dir': '',
             'audio': {
                 'quality': '',

@@ -20,8 +20,10 @@
 # You should have received a copy of the GNU Affero General Public License along
 # with dartt. If not, see <https://www.gnu.org/licenses/>.
 
-from typing import Callable, Sequence
+from typing import Callable, Sequence, Type
 import pytest
+
+from dartt.config import Config
 
 class InputLoopCounter:
     """Provide a certain input for some number of input iterations, then change
@@ -163,3 +165,71 @@ def inputSequenceFactory(
         return InputSequence(Input)
 
     return makeInputSequence
+
+@pytest.fixture
+def configFactory(
+        monkeypatch,
+        tmp_path,
+        request
+) -> Callable[[dict], Config]:
+    """ Return a factory to create a Config.
+
+    :param monkeypatch: A monkeypatcher
+    :param tmp_path: A pytest tmp_path object
+    :param request: A pytest request object
+    :returns: A Config factory
+
+    """
+    DefaultConfig = {
+        'musicbrainz': {
+            'user': 'dartt',
+            'password_cmd': ["pass", "musicbrainz.org/password"],
+        },
+        'base_output_dir': '/home/me',
+        'audio': {
+            'quality': 'Very High',
+            'ripper': '/usr/bin/cdparanoia',
+            'transcoder': '/usr/bin/flac',
+            'transcode_output_dir': '/home/me/music',
+        },
+        'video': {
+            'quality': 'Very High',
+            'ripper': 'makemkvcon',
+            'transcoder': 'HandbrakeCLI',
+            'archive_output_dir': '/home/me/archive',
+            'tv': {
+                'transcode_output_dir': '/home/me/movies',
+            },
+            'movies': {
+                'transcode_output_dir': '/home/me/tv',
+            }
+        }
+    }
+
+    def makeConfig(ConfigDict: dict = DefaultConfig) -> Config:
+        """ Create an InputSequence.
+
+        :param ConfigDict: A dict of config values
+        :returns: A Config
+
+        """
+        with monkeypatch.context() as M:
+            # Force the config to not exist.
+            M.setattr('pathlib.Path.exists', lambda _: False)
+
+            # Use a fake home directory.
+            HomeDir = tmp_path / 'home'
+            HomeDir.mkdir()
+            M.setattr('pathlib.Path.home', lambda: HomeDir)
+
+            # Do not prompt for config values.
+            M.setattr('builtins.input', lambda _: 'n')
+
+            NewConfig = Config()
+
+        NewConfig._items.update(ConfigDict)
+
+        return NewConfig
+
+    return makeConfig
+
