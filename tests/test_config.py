@@ -20,6 +20,7 @@
 # You should have received a copy of the GNU Affero General Public License along
 # with dartt. If not, see <https://www.gnu.org/licenses/>.
 
+import ast
 from dartt.config import Config
 from pathlib import Path
 import pytest
@@ -27,69 +28,35 @@ import sh
 import tomllib
 from typing import Callable, Sequence
 
-@pytest.fixture
-def configFactory(
-        monkeypatch,
-        tmp_path,
-        request
-) -> Callable[[dict], Config]:
-    """ Return a factory to create a Config.
-
-    :param monkeypatch: A monkeypatcher
-    :param tmp_path: A pytest tmp_path object
-    :param request: A pytest request object
-    :returns: A Config factory
-
-    """
-    def makeConfig(ConfigDict: dict) -> Config:
-        """ Create an InputSequence.
-
-        :param ConfigDict: A dict of config values
-        :returns: A Config
-
-        """
-        with monkeypatch.context() as M:
-            # Force the config to not exist.
-            M.setattr('pathlib.Path.exists', lambda _: False)
-
-            # Use a fake home directory.
-            HomeDir = tmp_path / 'home'
-            HomeDir.mkdir()
-            M.setattr('pathlib.Path.home', lambda: HomeDir)
-
-            # Do not prompt for config values.
-            M.setattr('builtins.input', lambda _: 'n')
-
-            NewConfig = Config()
-
-        NewConfig._items.update(ConfigDict)
-
-        return NewConfig
-
-    return makeConfig
-
+@pytest.mark.parametrize(
+    'MusicbrainzUser, MusicbrainzPasswordCmd, ExpectedMusicbrainzUser, '
+    'ExpectedMusicbrainzPasswordCmd',
+    [ ('', '', '', ''),
+      ('dartt', '', 'dartt', ["pass", "musicbrainz.org/password"]),
+      ('dartt', '["otherpass", "mbpass"]', 'dartt', ["otherpass", "mbpass"]),
+      ('dartt', '["otherpass", {"test": "bogus"}, "mbpass"]', 'dartt',
+       ["pass", "musicbrainz.org/password"]),
+      ('dartt', 'not non-python code', 'dartt',
+       ["pass", "musicbrainz.org/password"]) ]
+)
 @pytest.mark.parametrize(
     'ConfigSubpath, ExpectedConfigSubpath',
     ([ ('', str(Config.defaultUserConfigSubpath)) ] +
-#     [])
      [ (str(P), str(P)) for P in Config.userConfigSearchSubpaths ])
 )
 @pytest.mark.parametrize(
     'AudioQuality, ExpectedAudioQuality',
     ([ ('', Config.defaultQuality) ] +
-#     [])
      [ (Quality, Quality) for Quality in Config.qualities ])
 )
 @pytest.mark.parametrize(
     'AudioRipper, ExpectedAudioRipper',
     ([ ('', Config.defaultAudioRipper) ] +
-#     [])
      [ (Ripper, Ripper) for Ripper in Config.audioRippers ])
 )
 @pytest.mark.parametrize(
     'AudioTranscoder, ExpectedAudioTranscoder',
     ([ ('', Config.defaultAudioTranscoder) ] +
-#     [])
      [ (Coder, Coder) for Coder in Config.audioTranscoders ])
 )
 @pytest.mark.parametrize(
@@ -101,13 +68,11 @@ def configFactory(
 @pytest.mark.parametrize(
     'VideoQuality, ExpectedVideoQuality',
     ([ ('', Config.defaultQuality) ] +
-#     [])
      [ (Quality, Quality) for Quality in Config.qualities ])
 )
 @pytest.mark.parametrize(
     'VideoRipper, ExpectedVideoRipper',
     ([ ('', Config.defaultVideoRipper) ] +
-#     [])
      [ (Ripper, Ripper) for Ripper in Config.videoRippers ])
 )
 @pytest.mark.parametrize(
@@ -119,7 +84,6 @@ def configFactory(
 @pytest.mark.parametrize(
     'VideoTranscoder, ExpectedVideoTranscoder',
     ([ ('', Config.defaultVideoTranscoder) ] +
-#     [])
      [ (Coder, Coder) for Coder in Config.videoTranscoders ])
 )
 @pytest.mark.parametrize(
@@ -138,6 +102,8 @@ def test_config_gen(
         tmp_path,
         monkeypatch,
         inputSequenceFactory,
+        MusicbrainzUser, MusicbrainzPasswordCmd,
+        ExpectedMusicbrainzUser, ExpectedMusicbrainzPasswordCmd,
         ConfigSubpath, ExpectedConfigSubpath,
         AudioQuality, ExpectedAudioQuality,
         AudioRipper, ExpectedAudioRipper,
@@ -150,97 +116,126 @@ def test_config_gen(
         MovieTranscodeSubpath, ExpectedMovieTranscodeSubpath,
         TVTranscodeSubpath, ExpectedTVTranscodeSubpath
 ):
-    # Force the config to not exist.
-    monkeypatch.setattr('pathlib.Path.exists', lambda _: False)
+    with monkeypatch.context() as M:
+        # Force the config to not exist.
+        M.setattr('pathlib.Path.exists', lambda _: False)
 
-    # Use a fake home directory.
-    HomeDir = tmp_path / 'home'
-    HomeDir.mkdir()
-    monkeypatch.setattr('pathlib.Path.home', lambda: HomeDir)
+        # Use a fake home directory.
+        HomeDir = tmp_path / 'home'
+        HomeDir.mkdir()
+        M.setattr('pathlib.Path.home', lambda: HomeDir)
 
-    # Find all tools.
-    monkeypatch.setattr('sh.which', lambda Tool: HomeDir / 'bin' / Tool)
+        # Find all tools.
+        M.setattr('sh.which', lambda Tool: HomeDir / 'bin' / Tool)
 
-    BaseOutputDir = HomeDir / 'base'
-    BaseOutputDir.mkdir()
+        BaseOutputDir = HomeDir / 'base'
+        BaseOutputDir.mkdir()
 
-    def defaultInputOrPath(
-            Subpath: str
-    ) -> str:
-        return ('' if Subpath == ''
-                else str(BaseOutputDir / Subpath))
+        def defaultInputOrPath(
+                Subpath: str
+        ) -> str:
+            return ('' if Subpath == ''
+                    else str(BaseOutputDir / Subpath))
 
-    def getValueKey(
-            Value: str,
-            Seq: Sequence[str]
-    ) -> str:
-        Keys = [ f'{K}' for K,V in enumerate(Seq) if V == Value ]
-        if Keys:
-            return Keys[0]
-        return ''
+        def getValueKey(
+                Value: str,
+                Seq: Sequence[str]
+        ) -> str:
+            Keys = [ f'{K}' for K,V in enumerate(Seq) if V == Value ]
+            if Keys:
+                return Keys[0]
+            return ''
 
-    # Create an input sequence.
-    Input = inputSequenceFactory(
-        [
-            'y',                # Say that we want to create a config.
-            getValueKey(
-                ConfigSubpath,
-                [ str(P) for P in Config.userConfigSearchSubpaths ]
-            ),
-            str(BaseOutputDir), # Specify base directory.
-            getValueKey(AudioRipper, Config.audioRippers),
-            getValueKey(AudioTranscoder, Config.audioTranscoders),
-            getValueKey(AudioQuality, Config.qualities),
-            defaultInputOrPath(AudioTranscodeSubpath),
-            getValueKey(VideoRipper, Config.videoRippers),
-            defaultInputOrPath(VideoArchiveSubpath),
-            getValueKey(VideoTranscoder, Config.videoTranscoders),
-            getValueKey(VideoQuality, Config.qualities),
-            defaultInputOrPath(MovieTranscodeSubpath),
-            defaultInputOrPath(TVTranscodeSubpath)
-        ]
-    )
+        # Create an input sequence.
 
-    def genInput(Prompt: str):
-        print(Prompt)
-        return Input.generateInput()
+        # No password prompt if no user given.
+        MusicbrainzInput = [
+            MusicbrainzUser, MusicbrainzPasswordCmd
+        ] if len(MusicbrainzUser) > 0 else [ MusicbrainzUser ]
 
-    monkeypatch.setattr('builtins.input', genInput)
+        if len(MusicbrainzInput) > 1 and len(MusicbrainzPasswordCmd) > 0:
+            # Prompts a second time if the password command is ill-formed.
+            try:
+                PassCmdList = ast.literal_eval(MusicbrainzPasswordCmd)
+                if (not isinstance(PassCmdList, list) or
+                    not all(isinstance(Elem, str) for Elem in PassCmdList)):
+                    if len(MusicbrainzInput[0]) > 0:
+                        MusicbrainzInput += [
+                            '["pass", "musicbrainz.org/password"]'
+                        ]
+            except:
+                if len(MusicbrainzInput[0]) > 0:
+                    MusicbrainzInput += [
+                        '["pass", "musicbrainz.org/password"]'
+                    ]
 
-    def defaultExpectedOrPath(Subpath: str, DefaultSubpath: str):
-        return (str(BaseOutputDir / DefaultSubpath) if Subpath == ''
-                else str(BaseOutputDir / Subpath))
+        Input = inputSequenceFactory(
+            [
+                'y',                # Say that we want to create a config.
+                getValueKey(
+                    ConfigSubpath,
+                    [ str(P) for P in Config.userConfigSearchSubpaths ]
+                )
+            ] + MusicbrainzInput +
+            [
+                str(BaseOutputDir), # Specify base directory.
+                getValueKey(AudioRipper, Config.audioRippers),
+                getValueKey(AudioTranscoder, Config.audioTranscoders),
+                getValueKey(AudioQuality, Config.qualities),
+                defaultInputOrPath(AudioTranscodeSubpath),
+                getValueKey(VideoRipper, Config.videoRippers),
+                defaultInputOrPath(VideoArchiveSubpath),
+                getValueKey(VideoTranscoder, Config.videoTranscoders),
+                getValueKey(VideoQuality, Config.qualities),
+                defaultInputOrPath(MovieTranscodeSubpath),
+                defaultInputOrPath(TVTranscodeSubpath)
+            ]
+        )
 
-    Expected = {
-        'base_output_dir': str(BaseOutputDir),
-        'audio': {
-            'ripper': str(sh.which(ExpectedAudioRipper)),
-            'transcoder': str(sh.which(ExpectedAudioTranscoder)),
-            'quality': ExpectedAudioQuality,
-            'transcode_output_dir': str(BaseOutputDir / ExpectedAudioTranscodeSubpath),
-        },
-        'video': {
-            'ripper': str(sh.which(ExpectedVideoRipper)),
-            'archive_output_dir': str(BaseOutputDir / ExpectedVideoArchiveSubpath),
-            'transcoder': str(sh.which(ExpectedVideoTranscoder)),
-            'quality': ExpectedVideoQuality,
-            'movies': {
-                'transcode_output_dir': str(BaseOutputDir / ExpectedMovieTranscodeSubpath),
+        def genInput(Prompt: str):
+            print(Prompt)
+            return Input.generateInput()
+
+        M.setattr('builtins.input', genInput)
+
+        def defaultExpectedOrPath(Subpath: str, DefaultSubpath: str):
+            return (str(BaseOutputDir / DefaultSubpath) if Subpath == ''
+                    else str(BaseOutputDir / Subpath))
+
+        Expected = {
+            'musicbrainz': {
+                'user': ExpectedMusicbrainzUser,
+                'password_cmd': ExpectedMusicbrainzPasswordCmd,
             },
-            'tv': {
-                'transcode_output_dir': str(BaseOutputDir / ExpectedTVTranscodeSubpath),
+            'base_output_dir': str(BaseOutputDir),
+            'audio': {
+                'ripper': str(sh.which(ExpectedAudioRipper)),
+                'transcoder': str(sh.which(ExpectedAudioTranscoder)),
+                'quality': ExpectedAudioQuality,
+                'transcode_output_dir': str(BaseOutputDir / ExpectedAudioTranscodeSubpath),
             },
-        },
-    }
+            'video': {
+                'ripper': str(sh.which(ExpectedVideoRipper)),
+                'archive_output_dir': str(BaseOutputDir / ExpectedVideoArchiveSubpath),
+                'transcoder': str(sh.which(ExpectedVideoTranscoder)),
+                'quality': ExpectedVideoQuality,
+                'movies': {
+                    'transcode_output_dir': str(BaseOutputDir / ExpectedMovieTranscodeSubpath),
+                },
+                'tv': {
+                    'transcode_output_dir': str(BaseOutputDir / ExpectedTVTranscodeSubpath),
+                },
+            },
+        }
 
-    ConfigPath = HomeDir / ExpectedConfigSubpath
+        ConfigPath = HomeDir / ExpectedConfigSubpath
 
-    conf = Config()
+        conf = Config()
 
-    with open(ConfigPath, 'rb') as ConfigFile:
-        ConfigDict = tomllib.load(ConfigFile)
+        with open(ConfigPath, 'rb') as ConfigFile:
+            ConfigDict = tomllib.load(ConfigFile)
 
-    assert ConfigDict == Expected
+        assert ConfigDict == Expected
 
 def test_config_dict(
         tmp_path,
@@ -249,6 +244,10 @@ def test_config_dict(
 ):
 
     ConfigDict = {
+        'musicbrainz': {
+            'user': 'dartt',
+            'password_cmd': ["pass", "musicbrainz.org/password"],
+        },
         'base_output_dir': '/home/me',
         'audio': {
             'quality': 'High',
