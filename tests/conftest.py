@@ -233,3 +233,135 @@ def configFactory(
 
     return makeConfig
 
+class MockMB:
+    @classmethod
+    def releaseID(
+            cls
+    ):
+        return 'release-id'
+
+    @classmethod
+    def releaseTitle(
+            cls
+    ):
+        return 'A Great Release'
+
+    @classmethod
+    def releaseDate(
+            cls
+    ):
+        return 'Yesterday'
+
+    @classmethod
+    def releaseBarcode(
+            cls
+    ):
+        return 'ba7c0de'
+
+    @classmethod
+    def releaseArtistName(
+            cls
+    ):
+        return 'A. Great Artist'
+
+    @classmethod
+    def releaseTracks(
+            cls
+    ):
+        return [
+            {
+                'number': 0,
+                'length': 20,
+                'title': 'Track 0',
+                'artist': 'AGA & Her Band',
+            },
+            {
+                'number': 1,
+                'length': 30,
+                'title': 'Track 1',
+                'artist': 'AGA & Her Band',
+            }
+        ]
+
+    def __init__(
+            self
+    ):
+        self._Releases = [
+            {
+                'id': self.releaseID(),
+                'title': self.releaseTitle(),
+                'date': self.releaseDate(),
+                'barcode': self.releaseBarcode(),
+                'artist-credit': [
+                    {
+                        'artist': {
+                            'name': self.releaseArtistName(),
+                        },
+                    }
+                ],
+                'medium-list': [
+                    {
+                        'track-list': [
+                        ]
+                    }
+                ],
+            }
+        ]
+        for Track in self.releaseTracks():
+            self._Releases[0]['medium-list'][0]['track-list'].append(
+                {
+                    'number': Track['number'],
+                    'length': Track['length'],
+                    'recording': {
+                        'length': Track['length'],
+                        'title': Track['title'],
+                        'artist-credit-phrase': Track['artist']
+                    }
+                }
+            )
+
+        self._Disc = {
+            'disc': {
+                'sectors': 132,
+                'offset-list': [0, 12],
+                'offset-count': 2,
+                'release-list': self._Releases
+            }
+        }
+
+    @property
+    def info(
+            self
+    ) -> dict:
+        return self._Disc
+
+@pytest.fixture
+def MBFactory(
+        request
+) -> Callable[[], MockMB]:
+    def makeMB() -> MockMB:
+        return MockMB()
+
+    return makeMB
+
+class MockDiscID:
+    def __init__(self):
+        self._ID = 'frobnitz'
+        self._TOC = 'weevoo'
+
+    @property
+    def id(self):
+        return self._ID
+
+    @property
+    def toc_string(self):
+        return self._TOC
+
+@pytest.fixture
+def DiscIDFactory(
+        request
+) -> Callable[[], MockDiscID]:
+    def makeDiscID() -> MockDiscID:
+        return MockDiscID()
+
+    return makeDiscID
