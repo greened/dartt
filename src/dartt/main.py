@@ -20,12 +20,10 @@
 
 import argparse
 from collections.abc import Iterable
+from enum import Enum
 import logging
 from pathlib import Path
 import sys
-
-from dartt.config import readConfig
-from dartt.device import detectOpticalDrives
 
 def parseArgs(
         Args: Iterable
@@ -43,19 +41,27 @@ def parseArgs(
 
     return Parser.parse_args(Args)
 
-def main(
-        Args=[]
-):
-    ParsedArgs = parseArgs(Args)
+def main():
+    class ExitCode(Enum):
+        DeviceNotReady = 1
+
+    ParsedArgs = parseArgs(sys.argv[1:])
 
     LogLevel = ParsedArgs.msg_level
     NumericLogLevel = getattr(logging, LogLevel.upper())
 
     logging.basicConfig(level=NumericLogLevel)
 
-    OpticalDrives = detectOpticalDrives()
-
+    from dartt.config import readConfig
     Config = readConfig()
 
+    from dartt.device import detectOpticalDrives
+    OpticalDrives = detectOpticalDrives(Config)
+
+    from dartt.device import DeviceNotReadyError
     for Drive in OpticalDrives:
-        Media = Drive.open()
+        try:
+            Media = Drive.open()
+        except DeviceNotReadyError as RE:
+            print(str(RE))
+            return ExitCode.DeviceNotReady.value
