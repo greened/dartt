@@ -18,6 +18,7 @@ def test_main_no_args(
         M.setattr('dartt.optical.OpticalDrive.open', lambda _: None)
         M.setattr('dartt.optical.detectOpticalDrives', lambda _: [])
         M.setattr('sys.argv', [ sys.argv[0] ])
+
         main()
 
 @pytest.mark.parametrize(

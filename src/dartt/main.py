@@ -67,6 +67,7 @@ def main():
     OpticalDrives = detectOpticalDrives(Config)
 
     from dartt.optical import DeviceNotReadyError
+
     for Drive in OpticalDrives:
         try:
             Media = Drive.open()
