@@ -4,19 +4,21 @@
 #
 # SPDX-License-Identifier: GPL-3.0-or-later
 
-import dartt
 from dartt.main import main
 import logging
 import pytest
+import sys
 
 def test_main_no_args(
         monkeypatch
 ):
-    # Disable things that need user input or might generate errors.
-    monkeypatch.setattr('dartt.main.readConfig', lambda: None)
-    monkeypatch.setattr('dartt.device.OpticalDrive.open', lambda _: None)
+    with monkeypatch.context() as M:
+        # Disable things that need user input or might generate errors.
+        M.setattr('dartt.config.readConfig', lambda: None)
+        M.setattr('dartt.device.OpticalDrive.open', lambda _: None)
+        M.setattr('dartt.device.detectOpticalDrives', lambda _: [])
 
-    main()
+        main()
 
 @pytest.mark.parametrize(
     'MsgLevel,Expected,Unexpected',
@@ -32,25 +34,33 @@ def test_main_msg_level(
         Expected,
         Unexpected
 ):
-    # Make main set the caplog level.
-    monkeypatch.setattr(
-        'logging.basicConfig',
-        lambda **kwargs: caplog.set_level(getattr(logging, MsgLevel.upper()))
-    )
+    with monkeypatch.context() as M:
+        # Make main set the caplog level.
+        M.setattr(
+            'logging.basicConfig',
+            lambda **kwargs: caplog.set_level(getattr(
+                logging,
+                MsgLevel.upper()
+            ))
+        )
 
-    # Generate some output
-    def genOutput():
-        logging.debug('debug')
-        logging.info('info')
-        logging.warning('warning')
-        logging.error('error')
+        # Generate some output
+        def genOutput():
+            logging.debug('debug')
+            logging.info('info')
+            logging.warning('warning')
+            logging.error('error')
 
-    monkeypatch.setattr('dartt.main.readConfig', genOutput)
+        M.setattr('dartt.config.readConfig', genOutput)
 
-    # Disable things that need user input or might generate errors.
-    monkeypatch.setattr('dartt.device.OpticalDrive.open', lambda _: None)
+        # Disable things that need user input or might generate errors.
+        M.setattr('dartt.device.OpticalDrive.open', lambda _: None)
+        M.setattr('dartt.device.detectOpticalDrives', lambda _: [])
 
-    main(['--msg-level', MsgLevel])
+        # Set the message level.
+        M.setattr('sys.argv', [ sys.argv[0], '--msg-level', MsgLevel])
+
+        main()
 
     for Text in Expected:
         assert Text in caplog.text
