@@ -365,3 +365,20 @@ def DiscIDFactory(
         return MockDiscID()
 
     return makeDiscID
+
+@pytest.fixture
+def commandFactory(
+        request
+) -> Callable[[str, str], Type]:
+    def makeCommand(Command: str, Output: str) -> Type:
+        class MockCommand:
+            def __init__(self, Cmd: str):
+                self._Cmd = Cmd
+                self._Output = Output
+
+            def __call__(self, *Args) -> str:
+                return self._Output
+
+        return MockCommand
+
+    return makeCommand

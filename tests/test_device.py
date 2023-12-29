@@ -21,13 +21,17 @@
 # with dartt. If not, see <https://www.gnu.org/licenses/>.
 
 import dartt.device as dev
+import dartt.disc as disc
+import discid
 import pytest
+import sh
 from typing import Callable, Dict, Iterable, Sequence
 
 class MockDevice:
     def __init__(
             self,
             Name: str,
+            Node: str,
             Type: str
     ):
         if Type == 'CD':
@@ -85,6 +89,7 @@ class MockDevice:
 
         self._Properties['ID_CDROM'] = '1'
         self._SysName = Name
+        self._DeviceNode = Node
 
     @property
     def properties(
@@ -103,17 +108,26 @@ class MockDevice:
     ) -> str:
         return self._SysName
 
+    @property
+    def device_node(
+            self
+    ) ->str:
+        return self._DeviceNode
+
 class MockDevices:
     def __init__(
             self,
             Names: Sequence[str],
+            Nodes: Sequence[str],
             Type: str
     ):
         self._Names = Names
+        self._Nodes = Nodes
         self._Type = Type
 
     def match(self, **kwargs):
-        return [ MockDevice(Name, self._Type) for Name in self._Names ]
+        return [ MockDevice(Name, Node, self._Type)
+                 for Name, Node in zip(self._Names, self._Nodes) ]
 
 @pytest.fixture
 def deviceFactory(
@@ -121,63 +135,112 @@ def deviceFactory(
 ) -> Callable[[Sequence[str]], MockDevice]:
     def makeDevices(
             Names: Sequence[str],
+            Nodes: Sequence[str],
             DiscType: str
     ) -> MockDevices:
-        return MockDevices(Names, DiscType)
+        return MockDevices(Names, Nodes, DiscType)
 
     return makeDevices
 
 @pytest.mark.parametrize(
-    'DeviceNames', [ 'sr0', 'sr1', [ 'sr0', 'sr3' ] ]
+    'DeviceNames, DeviceNodes', [ ('sr0', '/dev/sr0'), ('sr1', '/dev/sr1'),
+                                  [ ('sr0', '/dev/sr0'), ('sr3', '/dev/sr3') ] ]
 )
 def test_detectOpticalDrives(
         monkeypatch,
+        configFactory,
         deviceFactory,
-        DeviceNames
+        commandFactory,
+        DeviceNames,
+        DeviceNodes
 ):
     monkeypatch.setattr(
         'pyudev.Context.list_devices',
-        lambda s, **kwargs: deviceFactory(DeviceNames, 'CD')
+        lambda s, **kwargs: deviceFactory(DeviceNames, DeviceNodes, 'CD')
     )
 
-    assert dev.detectOpticalDrives()
+    Config = configFactory()
 
-    for Device, Name in zip(dev.detectOpticalDrives(), DeviceNames):
-        assert Device.id == Name
+    with monkeypatch.context() as M:
+        M.setattr('sh.Command', lambda Name: commandFactory(Name, 'password'))
+
+        assert dev.detectOpticalDrives(Config)
+
+        for Device, Name in zip(dev.detectOpticalDrives(Config), DeviceNames):
+            assert Device.id == Name
 
 @pytest.mark.parametrize(
     'DiscType,ExpectedType', [
-        ('CD', dev.AudioCD), ('DVD', dev.DVD), ('BD', dev.BluRay)
+        ('CD', disc.AudioCD), ('DVD', disc.DVD), ('BD', disc.BluRay)
     ]
 )
-
 def test_Device_open(
         monkeypatch,
+        configFactory,
         deviceFactory,
+        DiscIDFactory,
+        MBFactory,
+        commandFactory,
         DiscType,
         ExpectedType
 ):
     monkeypatch.setattr(
         'pyudev.Context.list_devices',
-        lambda s, **kwargs: deviceFactory(['sr0'], DiscType)
+        lambda s, **kwargs: deviceFactory(['sr0'], ['/dev/sr0'], DiscType)
     )
 
-    assert dev.detectOpticalDrives()
+    Config = configFactory()
+    DiscID = DiscIDFactory()
+    MB = MBFactory()
 
-    for Device in dev.detectOpticalDrives():
-        assert isinstance(Device.open(), ExpectedType)
+    with monkeypatch.context() as M:
+        M.setattr(
+            'musicbrainzngs.get_releases_by_discid',
+            lambda *args, **kwargs: MB.info
+        )
+        M.setattr(
+            'discid.read', lambda Device: DiscID
+        )
+        M.setattr('sh.Command', lambda Name: commandFactory(Name, 'password'))
+
+        assert dev.detectOpticalDrives(Config)
+
+        for Device in dev.detectOpticalDrives(Config):
+            assert isinstance(Device.open(), ExpectedType)
 
 def test_Device_open_failure(
         monkeypatch,
-        deviceFactory
+        configFactory,
+        deviceFactory,
+        DiscIDFactory,
+        MBFactory,
+        commandFactory
 ):
     monkeypatch.setattr(
         'pyudev.Context.list_devices',
-        lambda s, **kwargs: deviceFactory(['sr0', 'sr6'], '')
+        lambda s, **kwargs: deviceFactory(
+            ['sr0', 'sr6'],
+            ['/dev/sr0', '/dev/sr6'],
+            ''
+        )
     )
 
-    assert dev.detectOpticalDrives()
+    Config = configFactory()
+    DiscID = DiscIDFactory()
+    MB = MBFactory()
 
-    for Device in dev.detectOpticalDrives():
-        with pytest.raises(RuntimeError):
-            Disc = Device.open()
+    with monkeypatch.context() as M:
+        M.setattr(
+            'musicbrainzngs.get_releases_by_discid',
+            lambda *args, **kwargs: MB.info
+        )
+        M.setattr(
+            'discid.read', lambda Device: DiscID
+        )
+        M.setattr('sh.Command', lambda Name: commandFactory(Name, 'password'))
+
+        assert dev.detectOpticalDrives(Config)
+
+        for Device in dev.detectOpticalDrives(Config):
+            with pytest.raises(RuntimeError):
+                Disc = Device.open()

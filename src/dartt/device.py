@@ -25,8 +25,13 @@ import pyudev
 import sh
 from typing import Iterable
 
-from dartt.config import readConfig
-from dartt.disc import AudioCD, Disc, DVD, BluRay
+import dartt.config as config
+
+class DeviceNotReadyError(RuntimeError):
+    def __init__(self, DevPath: str):
+        super().__init__(
+            f'{DevPath} not ready or does not contain a known disc type'
+        )
 
 class Device(ABC):
     @property
@@ -39,8 +44,10 @@ class Device(ABC):
         pass
 
 class OpticalDrive(Device):
-    def __init__(self, Device: pyudev.Device):
-        self._Device = Device
+    def __init__(self, Dev: pyudev.Device, Config: config.Config):
+        import dartt.musicbrainz as mb
+        self._Device = Dev
+        self._Musicbrainz = mb.MusicBrainz(Config)
 
     def __repr__(self) -> str:
         return f'{self._Device.sys_name}'
@@ -52,21 +59,27 @@ class OpticalDrive(Device):
     def id(self) -> str:
         return self._Device.sys_name
 
+    @property
+    def path(self) -> str:
+        return self._Device.device_node
+
+    from dartt.disc import Disc
     def open(self) -> Disc:
         if 'ID_CDROM_MEDIA_CD' in self._Device.keys():
-            return AudioCD(self)
+            from dartt.disc import AudioCD
+            return AudioCD(self, self._Musicbrainz)
         if 'ID_CDROM_MEDIA_DVD' in self._Device.keys():
+            from dartt.disc import DVD
             return DVD(self)
         if 'ID_CDROM_MEDIA_BD' in self._Device.keys():
+            from dartt.disc import BluRay
             return BluRay(self)
 
-        raise RuntimeError(
-            '{self.id} not ready or  does not contain a known disc type'
-        )
+        raise DeviceNotReadyError(self.path)
 
-def detectOpticalDrives() -> Iterable[OpticalDrive]:
+def detectOpticalDrives(Config: config.Config) -> Iterable[OpticalDrive]:
     Context = pyudev.Context()
     Devices = Context.list_devices(subsystem='block', DEVTYPE='disk')
 
-    return [OpticalDrive(Device) for Device in Devices.match(ID_CDROM=1)
+    return [OpticalDrive(Device, Config) for Device in Devices.match(ID_CDROM=1)
             if 'ID_CDROM' in Device.keys()]

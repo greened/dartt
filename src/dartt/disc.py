@@ -19,28 +19,40 @@
 # with dartt. If not, see <https://www.gnu.org/licenses/>.
 
 from abc import ABC, abstractmethod
-import musicbrainzngs as mb
+import discid
+import logging
+
+import dartt.device as device
+import dartt.musicbrainz as mb
 
 class Disc(ABC):
-    def __init__(self, Device):
-        self._Device = Device
+    def __init__(self, Dev: device.Device):
+        self._Device = Dev
 
 class AudioDisc(Disc):
-    def __init__(self, Device):
-        super().__init__(Device)
+    def __init__(self, Dev: device.Device):
+        super().__init__(Dev)
 
 class VideoDisc(Disc):
-    def __init__(self, Device):
-        super().__init__(Device)
+    def __init__(self, Dev: device.Device):
+        super().__init__(Dev)
 
 class AudioCD(AudioDisc):
-    def __init__(self, Device):
-        super().__init__(Device)
+    def __init__(self, Dev: device.Device, Musicbrainz: mb.MusicBrainz):
+        super().__init__(Dev)
+        self._Musicbrainz = Musicbrainz
+
+        logging.debug('Reading disc ID')
+        self._DiscIDInfo = discid.read(self._Device.path)
+        logging.debug(f'Done reading disc ID: {self._DiscIDInfo}')
+
+        Info = self._Musicbrainz.getDiscInfo(self._DiscIDInfo)
+        logging.debug(f'Disc info: {Info}')
 
 class DVD(VideoDisc):
-    def __init__(self, Device):
-        super().__init__(Device)
+    def __init__(self, Dev: device.Device):
+        super().__init__(Dev)
 
 class BluRay(VideoDisc):
-    def __init__(self, Device):
-        super().__init__(Device)
+    def __init__(self, Dev: device.Device):
+        super().__init__(Dev)
