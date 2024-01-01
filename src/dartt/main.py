@@ -39,6 +39,11 @@ def parseArgs(
         default='error'
     )
 
+    Parser.add_argument(
+        '--config',
+        action='store_true'
+    )
+
     return Parser.parse_args(Args)
 
 def main():
@@ -54,6 +59,9 @@ def main():
 
     from dartt.config import readConfig
     Config = readConfig()
+
+    if ParsedArgs.config:
+        Config.reconfig()
 
     from dartt.device import detectOpticalDrives
     OpticalDrives = detectOpticalDrives(Config)

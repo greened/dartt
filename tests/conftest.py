@@ -189,14 +189,15 @@ def configFactory(
         'audio': {
             'quality': 'Very High',
             'ripper': '/usr/bin/cdparanoia',
+            'archive_output_dir': '/home/me/archive/audio',
             'transcoder': '/usr/bin/flac',
             'transcode_output_dir': '/home/me/music',
         },
         'video': {
             'quality': 'Very High',
             'ripper': 'makemkvcon',
+            'archive_output_dir': '/home/me/archive/video',
             'transcoder': 'HandbrakeCLI',
-            'archive_output_dir': '/home/me/archive',
             'tv': {
                 'transcode_output_dir': '/home/me/movies',
             },

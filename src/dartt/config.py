@@ -118,6 +118,17 @@ class Config:
 
     @classmethod
     @property
+    def defaultAudioArchiveSubpath(cls):
+        """ Return the default subpath under the base path for archived audio.
+
+        :param cls: The Config class
+        :returns: The default subpath for archived video
+
+        """
+        return Path('archive') / 'audio'
+
+    @classmethod
+    @property
     def audioTranscoders(cls):
         """ Return all supported audio transcoders.
 
@@ -257,6 +268,47 @@ class Config:
         with open(Output, 'wb') as ConfigFile:
             tomli_w.dump(self._items, ConfigFile)
 
+    def reconfig(self):
+        for Subpath in self.userConfigSearchSubpaths:
+            ConfigFile =  Path.home() / Subpath
+            if ConfigFile.exists():
+                with open(ConfigFile, 'rb') as File:
+                    self._update(ConfigFile)
+                    return
+
+        # No config file found.
+        self._update(Path.home() / self.defaultUserConfigSubpath)
+
+    def getAudioRipperType(self) -> str:
+        return Path(self._items['audio']['ripper']).name
+
+    def getAudioRipperCommand(self) -> str:
+        return self._items['audio']['ripper']
+
+    def getAudioTranscoderType(self) -> str:
+        return Path(self._items['audio']['transcoder']).name
+
+    def getAudioTranscoderCommand(self) -> str:
+        return self._items['audio']['transcoder']
+
+    def getAudioArchiveDir(self) -> str:
+        return self._items['audio']['archive_output_dir']
+
+    def getVideoRipperType(self) -> str:
+        return Path(self._items['video']['ripper']).name
+
+    def getVideoRipperCommand(self) -> str:
+        return self._items['video']['ripper']
+
+    def getVideoTranscoderType(self) -> str:
+        return Path(self._items['video']['transcoder']).name
+
+    def getVideoTranscoderCommand(self) -> str:
+        return self._items['video']['transcoder']
+
+    def getVideoArchiveDir(self) -> str:
+        return self._items['video']['archive_output_dir']
+
     def _update(self, ConfigPath):
         """Update the config file in the user's home directory.
 
@@ -265,7 +317,7 @@ class Config:
 
         MusicbrainzUser = utils.query(
             'Musicbrainz user name',
-            'NONE'
+            self._items['musicbrainz']['user'] or 'NONE'
         )
 
         self._items['musicbrainz']['user'] = (
@@ -278,7 +330,8 @@ class Config:
             while len(PassCmd) == 0:
                 PassCmd = utils.query(
                     'Musicbrainz password command',
-                    '["pass", "musicbrainz.org/password"]'
+                    (str(self._items['musicbrainz']['password_cmd']) or
+                     '["pass", "musicbrainz.org/password"]')
                 )
                 try:
                     PassCmdList = ast.literal_eval(PassCmd)
@@ -302,7 +355,10 @@ class Config:
 
         BaseOutputDirectory = ''
         while not BaseOutputDirectory:
-            BaseOutputDirectory = input('Base output directory: ')
+            BaseOutputDirectory = utils.query(
+                'Base output directory',
+                self._items['base_output_dir'] or ''
+            )
         self._items['base_output_dir'] = BaseOutputDirectory
 
         AudioRippers = [Audio for Audio in self.audioRippers if found(Audio)]
@@ -312,9 +368,22 @@ class Config:
                                   else AudioRippers[0])
             self._items['audio']['ripper'] = str(sh.which(
                 utils.menu(
-                    'Default audio ripper', AudioRippers, DefaultAudioRipper
+                    'Default audio ripper',
+                    AudioRippers,
+                    self.getAudioRipperType() or DefaultAudioRipper
                 )
             ))
+
+            DefaultAudioArchiveOutputDirectory = (
+                self._items['base_output_dir'] / self.defaultAudioArchiveSubpath
+            )
+            self._items['audio']['archive_output_dir'] = (
+                utils.query(
+                    'Archive directory',
+                    (self._items['audio']['archive_output_dir'] or
+                     str(DefaultAudioArchiveOutputDirectory))
+                )
+            )
 
         AudioTranscoders = [Coder for Coder in self.audioTranscoders
                             if found(Coder)]
@@ -327,7 +396,7 @@ class Config:
                 utils.menu(
                     'Default audio transcoder',
                     AudioTranscoders,
-                    DefaultTranscoder
+                    self.getAudioTranscoderType() or DefaultTranscoder
                 )
             ))
 
@@ -335,7 +404,7 @@ class Config:
                 utils.menu(
                     'Default audio quality',
                     self.qualities,
-                    self.defaultQuality
+                    self._items['audio']['quality'] or self.defaultQuality
                 )
             )
 
@@ -344,7 +413,8 @@ class Config:
             self._items['audio']['transcode_output_dir'] = (
                 utils.query(
                     'Default audio transcode directory',
-                    str(DefaultTranscodeDir)
+                    (self._items['audio']['transcode_output_dir'] or
+                     str(DefaultTranscodeDir))
                 )
             )
 
@@ -357,17 +427,18 @@ class Config:
                 utils.menu(
                     'Default video ripper',
                     VideoRippers,
-                    DefaultVideoRipper
+                    self.getVideoRipperType() or DefaultVideoRipper
                 )
             ))
 
-            DefaultArchiveOutputDirectory = (
+            DefaultVideoArchiveOutputDirectory = (
                 self._items['base_output_dir'] / self.defaultVideoArchiveSubpath
             )
             self._items['video']['archive_output_dir'] = (
                 utils.query(
                     'Archive directory',
-                    str(DefaultArchiveOutputDirectory)
+                    (self._items['video']['archive_output_dir'] or
+                     str(DefaultVideoArchiveOutputDirectory))
                 )
             )
 
@@ -381,7 +452,7 @@ class Config:
                 utils.menu(
                     'Default video transcoder',
                     VideoTranscoders,
-                    DefaultTranscoder
+                    self.getVideoTranscoderType() or DefaultTranscoder
                 )
             ))
 
@@ -389,7 +460,7 @@ class Config:
                 utils.menu(
                     'Default video quality',
                     self.qualities,
-                    self.defaultQuality
+                    self._items['video']['quality'] or self.defaultQuality
                 )
             )
 
@@ -398,7 +469,8 @@ class Config:
             self._items['video']['movies']['transcode_output_dir'] = (
                 utils.query(
                     'Default movie transcode directory',
-                    str(DefaultTranscodeDir)
+                    (self._items['video']['movies']['transcode_output_dir'] or
+                     str(DefaultTranscodeDir))
                 )
             )
 
@@ -407,7 +479,8 @@ class Config:
             self._items['video']['tv']['transcode_output_dir'] = (
                 utils.query(
                     'Default TV transcode directory',
-                    str(DefaultTranscodeDir)
+                    (self._items['video']['tv']['transcode_output_dir'] or
+                     str(DefaultTranscodeDir))
                 )
             )
 
@@ -437,14 +510,15 @@ class Config:
             'audio': {
                 'quality': '',
                 'ripper': '',
+                'archive_output_dir': '',
                 'transcoder': '',
                 'transcode_output_dir': '',
             },
             'video': {
                 'quality': '',
                 'ripper': '',
-                'transcoder': '',
                 'archive_output_dir': '',
+                'transcoder': '',
                 'tv': {
                     'transcode_output_dir': '',
                 },
@@ -505,5 +579,5 @@ class Config:
 
 
 
-def readConfig():
+def readConfig() -> Config:
     return Config()

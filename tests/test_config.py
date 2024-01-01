@@ -55,6 +55,12 @@ from typing import Callable, Sequence
      [ (Ripper, Ripper) for Ripper in Config.audioRippers ])
 )
 @pytest.mark.parametrize(
+    'AudioArchiveSubpath, ExpectedAudioArchiveSubpath',
+    [ ('', str(Config.defaultAudioArchiveSubpath)),
+      (str(Config.defaultAudioArchiveSubpath),
+       str(Config.defaultAudioArchiveSubpath)) ]
+)
+@pytest.mark.parametrize(
     'AudioTranscoder, ExpectedAudioTranscoder',
     ([ ('', Config.defaultAudioTranscoder) ] +
      [ (Coder, Coder) for Coder in Config.audioTranscoders ])
@@ -107,6 +113,7 @@ def test_config_gen(
         ConfigSubpath, ExpectedConfigSubpath,
         AudioQuality, ExpectedAudioQuality,
         AudioRipper, ExpectedAudioRipper,
+        AudioArchiveSubpath, ExpectedAudioArchiveSubpath,
         AudioTranscoder, ExpectedAudioTranscoder,
         AudioTranscodeSubpath, ExpectedAudioTranscodeSubpath,
         VideoQuality, ExpectedVideoQuality,
@@ -180,6 +187,7 @@ def test_config_gen(
             [
                 str(BaseOutputDir), # Specify base directory.
                 getValueKey(AudioRipper, Config.audioRippers),
+                defaultInputOrPath(AudioArchiveSubpath),
                 getValueKey(AudioTranscoder, Config.audioTranscoders),
                 getValueKey(AudioQuality, Config.qualities),
                 defaultInputOrPath(AudioTranscodeSubpath),
@@ -210,6 +218,7 @@ def test_config_gen(
             'base_output_dir': str(BaseOutputDir),
             'audio': {
                 'ripper': str(sh.which(ExpectedAudioRipper)),
+                'archive_output_dir': str(BaseOutputDir / ExpectedAudioArchiveSubpath),
                 'transcoder': str(sh.which(ExpectedAudioTranscoder)),
                 'quality': ExpectedAudioQuality,
                 'transcode_output_dir': str(BaseOutputDir / ExpectedAudioTranscodeSubpath),
@@ -252,14 +261,15 @@ def test_config_dict(
         'audio': {
             'quality': 'High',
             'ripper': '/usr/bin/cdparanoia',
+            'archive_output_dir': '/home/me/archive/audio',
             'transcoder': '/usr/bin/flac',
             'transcode_output_dir': '/home/me/music',
         },
         'video': {
             'quality': 'Low',
-            'ripper': 'makemkvcon',
-            'transcoder': 'HandbrakeCLI',
-            'archive_output_dir': '/home/me/archive',
+            'ripper': '/usr/bin/makemkvcon',
+            'transcoder': '/usr/bin/HandbrakeCLI',
+            'archive_output_dir': '/home/me/archive/video',
             'tv': {
                 'transcode_output_dir': '/home/me/movies',
             },
@@ -309,3 +319,153 @@ def test_write(
             ConfigDict = tomllib.load(ConfigFile)
 
         assert ConfigDict == ExpectedConfigDict
+
+def test_api(
+        tmp_path,
+        monkeypatch,
+        configFactory
+):
+    Config = configFactory()
+
+    ExpectedAudioRipperType = Path(Config._items['audio']['ripper']).name
+    ExpectedAudioRipperCommand = Config._items['audio']['ripper']
+    ExpectedAudioTranscoderType = (
+        Path(Config._items['audio']['transcoder']).name
+    )
+    ExpectedAudioTranscoderCommand = Config._items['audio']['transcoder']
+    ExpectedAudioArchiveDir = Config._items['audio']['archive_output_dir']
+    assert Config.getAudioRipperType() == ExpectedAudioRipperType
+    assert Config.getAudioRipperCommand() == ExpectedAudioRipperCommand
+    assert Config.getAudioTranscoderType() == ExpectedAudioTranscoderType
+    assert Config.getAudioTranscoderCommand() == ExpectedAudioTranscoderCommand
+    assert Config.getAudioArchiveDir() == ExpectedAudioArchiveDir
+
+    ExpectedVideoRipperType = Path(Config._items['video']['ripper']).name
+    ExpectedVideoRipperCommand = Config._items['video']['ripper']
+    ExpectedVideoTranscoderType = (
+        Path(Config._items['video']['transcoder']).name
+    )
+    ExpectedVideoTranscoderCommand = Config._items['video']['transcoder']
+    ExpectedVideoArchiveDir = Config._items['video']['archive_output_dir']
+    assert Config.getVideoRipperType() == ExpectedVideoRipperType
+    assert Config.getVideoRipperCommand() == ExpectedVideoRipperCommand
+    assert Config.getVideoTranscoderType() == ExpectedVideoTranscoderType
+    assert Config.getVideoTranscoderCommand() == ExpectedVideoTranscoderCommand
+    assert Config.getVideoArchiveDir() == ExpectedVideoArchiveDir
+
+def test_reconfig(
+        tmp_path,
+        monkeypatch,
+        configFactory,
+        inputSequenceFactory
+):
+    ConfigDict = {
+        'musicbrainz': {
+            'user': 'dartt',
+            'password_cmd': ["pass", "musicbrainz.org/dartt/password"],
+        },
+        'base_output_dir': '/home/me',
+        'audio': {
+            'quality': 'High',
+            'ripper': '/usr/bin/cdparanoia',
+            'archive_output_dir': '/home/me/archive/audio',
+            'transcoder': '/usr/bin/oggenc',
+            'transcode_output_dir': '/home/me/music',
+        },
+        'video': {
+            'quality': 'Low',
+            'ripper': '/usr/bin/makemkvcon',
+            'transcoder': '/user/bin/HandbrakeCLI',
+            'archive_output_dir': '/home/me/archive/video',
+            'tv': {
+                'transcode_output_dir': '/home/me/movies',
+            },
+            'movies': {
+                'transcode_output_dir': '/home/me/tv',
+            }
+        }
+    }
+
+    NewConfigDict = {
+        'musicbrainz': {
+            'user': 'dartt',
+            'password_cmd': ["pass", "musicbrainz.org/dartt/password"],
+        },
+        'base_output_dir': '/home/me',
+        'audio': {
+            'quality': 'Low',
+            'ripper': '/usr/bin/cdparanoia',
+            'archive_output_dir': '/home/me/archive/audio',
+            'transcoder': '/usr/bin/oggenc',
+            'transcode_output_dir': '/home/me/music',
+        },
+        'video': {
+            'quality': 'High',
+            'ripper': '/usr/bin/makemkvcon',
+            'transcoder': '/usr/bin/HandbrakeCLI',
+            'archive_output_dir': '/home/me/archive/video',
+            'tv': {
+                'transcode_output_dir': '/home/me/movies',
+            },
+            'movies': {
+                'transcode_output_dir': '/home/me/tv',
+            }
+        }
+    }
+
+    def getValueKey(
+            Value: str,
+            Seq: Sequence[str]
+    ) -> str:
+        Keys = [ f'{K}' for K,V in enumerate(Seq) if V == Value ]
+        if Keys:
+            return Keys[0]
+        return ''
+
+    with monkeypatch.context() as M:
+        # Use a fake home directory.
+        HomeDir = tmp_path / 'home'
+
+        M.setattr('pathlib.Path.home', lambda: HomeDir)
+
+        NewConfig = configFactory(ConfigDict)
+
+        assert NewConfig._items == ConfigDict
+
+        ConfigPath = HomeDir / Config.defaultUserConfigSubpath
+
+        ConfigPath.parent.mkdir(parents=True)
+
+        NewConfig.write(ConfigPath)
+
+        Input = inputSequenceFactory(
+            [
+                '',
+                '',
+                '',
+                '',
+                '',
+                '',
+                getValueKey('Low', Config.qualities),
+                '',
+                '',
+                '',
+                '',
+                getValueKey('High', Config.qualities),
+                '',
+                ''
+            ]
+        )
+
+        def genInput(Prompt: str):
+            print(Prompt)
+            return Input.generateInput()
+
+        M.setattr('builtins.input', genInput)
+
+        # Find all tools.
+        M.setattr('sh.which', lambda Tool: Path('/usr') / 'bin' / Tool)
+
+        NewConfig.reconfig()
+
+    assert NewConfig._items == NewConfigDict
