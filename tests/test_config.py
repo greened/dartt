@@ -26,83 +26,115 @@ from pathlib import Path
 import pytest
 import sh
 import tomllib
-from typing import Callable, Sequence
+from typing import Callable, List, Sequence
+
+def config_gen_test_product(Values: List[List]) -> List[List]:
+    # Each outer list is a list of values to be tested.  For each outer list,
+    # iterate over its contents holding the other lists to their first element.
+    # This is like a Cartesian product if each of the other lists not being
+    # iterated were size one.
+
+    NumLists = len(Values)
+
+    OuterResult = []
+    for Index in range(NumLists):
+        for Value in Values[Index]:
+            InnerResult = ()
+            for OtherIndex in range(NumLists):
+                if OtherIndex != Index:
+                    print(f'Appending other inner: {Values[OtherIndex][0]}')
+                    InnerResult += Values[OtherIndex][0]
+                else:
+                    print(f'Appending this inner: {Value}')
+                    InnerResult += Value
+            print(f'Appending outer: {InnerResult}')
+            OuterResult.append(InnerResult)
+
+    print(f'OuterResult: {OuterResult}')
+    return OuterResult
 
 @pytest.mark.parametrize(
     'MusicbrainzUser, MusicbrainzPasswordCmd, ExpectedMusicbrainzUser, '
-    'ExpectedMusicbrainzPasswordCmd',
-    [ ('', '', '', ''),
-      ('dartt', '', 'dartt', ["pass", "musicbrainz.org/password"]),
-      ('dartt', '["otherpass", "mbpass"]', 'dartt', ["otherpass", "mbpass"]),
-      ('dartt', '["otherpass", {"test": "bogus"}, "mbpass"]', 'dartt',
-       ["pass", "musicbrainz.org/password"]),
-      ('dartt', 'not non-python code', 'dartt',
-       ["pass", "musicbrainz.org/password"]) ]
-)
-@pytest.mark.parametrize(
-    'ConfigSubpath, ExpectedConfigSubpath',
-    ([ ('', str(Config.defaultUserConfigSubpath)) ] +
-     [ (str(P), str(P)) for P in Config.userConfigSearchSubpaths ])
-)
-@pytest.mark.parametrize(
-    'AudioQuality, ExpectedAudioQuality',
-    ([ ('', Config.defaultQuality) ] +
-     [ (Quality, Quality) for Quality in Config.qualities ])
-)
-@pytest.mark.parametrize(
-    'AudioRipper, ExpectedAudioRipper',
-    ([ ('', Config.defaultAudioRipper) ] +
-     [ (Ripper, Ripper) for Ripper in Config.audioRippers ])
-)
-@pytest.mark.parametrize(
-    'AudioArchiveSubpath, ExpectedAudioArchiveSubpath',
-    [ ('', str(Config.defaultAudioArchiveSubpath)),
-      (str(Config.defaultAudioArchiveSubpath),
-       str(Config.defaultAudioArchiveSubpath)) ]
-)
-@pytest.mark.parametrize(
-    'AudioTranscoder, ExpectedAudioTranscoder',
-    ([ ('', Config.defaultAudioTranscoder) ] +
-     [ (Coder, Coder) for Coder in Config.audioTranscoders ])
-)
-@pytest.mark.parametrize(
-    'AudioTranscodeSubpath, ExpectedAudioTranscodeSubpath',
-    [ ('', str(Config.defaultAudioTranscodeSubpath)),
-      (str(Config.defaultAudioTranscodeSubpath),
-       str(Config.defaultAudioTranscodeSubpath)) ]
-)
-@pytest.mark.parametrize(
-    'VideoQuality, ExpectedVideoQuality',
-    ([ ('', Config.defaultQuality) ] +
-     [ (Quality, Quality) for Quality in Config.qualities ])
-)
-@pytest.mark.parametrize(
-    'VideoRipper, ExpectedVideoRipper',
-    ([ ('', Config.defaultVideoRipper) ] +
-     [ (Ripper, Ripper) for Ripper in Config.videoRippers ])
-)
-@pytest.mark.parametrize(
-    'VideoArchiveSubpath, ExpectedVideoArchiveSubpath',
-    [ ('', str(Config.defaultVideoArchiveSubpath)),
-      (str(Config.defaultVideoArchiveSubpath),
-       str(Config.defaultVideoArchiveSubpath)) ]
-)
-@pytest.mark.parametrize(
-    'VideoTranscoder, ExpectedVideoTranscoder',
-    ([ ('', Config.defaultVideoTranscoder) ] +
-     [ (Coder, Coder) for Coder in Config.videoTranscoders ])
-)
-@pytest.mark.parametrize(
-    'MovieTranscodeSubpath, ExpectedMovieTranscodeSubpath',
-    [ ('', str(Config.defaultMovieTranscodeSubpath)),
-      (str(Config.defaultMovieTranscodeSubpath),
-       str(Config.defaultMovieTranscodeSubpath))]
-)
-@pytest.mark.parametrize(
+    'ExpectedMusicbrainzPasswordCmd,'
+
+    'ConfigSubpath, ExpectedConfigSubpath,'
+
+    'AudioQuality, ExpectedAudioQuality,'
+
+    'AudioRipper, ExpectedAudioRipper,'
+
+    'AudioArchiveSubpath, ExpectedAudioArchiveSubpath,'
+
+    'AudioTranscoder, ExpectedAudioTranscoder,'
+
+    'AudioTranscodeSubpath, ExpectedAudioTranscodeSubpath,'
+
+    'VideoQuality, ExpectedVideoQuality,'
+
+    'VideoRipper, ExpectedVideoRipper,'
+
+    'VideoArchiveSubpath, ExpectedVideoArchiveSubpath,'
+
+    'VideoTranscoder, ExpectedVideoTranscoder,'
+
+    'MovieTranscodeSubpath, ExpectedMovieTranscodeSubpath,'
+
     'TVTranscodeSubpath, ExpectedTVTranscodeSubpath',
-    [ ('', str(Config.defaultTVTranscodeSubpath)),
-      (str(Config.defaultTVTranscodeSubpath),
-       str(Config.defaultTVTranscodeSubpath)) ]
+
+    config_gen_test_product(
+        [
+            # Musicbrainz
+            [ ('', '', '', ''),
+              ('dartt', '', 'dartt', ["pass", "musicbrainz.org/password"]),
+              ('dartt', '["otherpass", "mbpass"]', 'dartt', ["otherpass",
+                                                             "mbpass"]),
+              ('dartt', '["otherpass", {"test": "bogus"}, "mbpass"]', 'dartt',
+               ["pass", "musicbrainz.org/password"]),
+              ('dartt', 'not non-python code', 'dartt',
+               ["pass", "musicbrainz.org/password"]) ],
+            # Config subpath
+            ([ ('', str(Config.defaultUserConfigSubpath)) ] +
+             [ (str(P), str(P)) for P in Config.userConfigSearchSubpaths ]),
+            # Audio quality
+            ([ ('', Config.defaultQuality) ] +
+             [ (Quality, Quality) for Quality in Config.qualities ]),
+            # Audio ripper
+            ([ ('', Config.defaultAudioRipper) ] +
+             [ (Ripper, Ripper) for Ripper in Config.audioRippers ]),
+            # Audio archive
+            [ ('', str(Config.defaultAudioArchiveSubpath)),
+              (str(Config.defaultAudioArchiveSubpath),
+               str(Config.defaultAudioArchiveSubpath)) ],
+            # Audio transcoder
+            ([ ('', Config.defaultAudioTranscoder) ] +
+             [ (Coder, Coder) for Coder in Config.audioTranscoders ]),
+            # Audio transcode subpath
+            [ ('', str(Config.defaultAudioTranscodeSubpath)),
+              (str(Config.defaultAudioTranscodeSubpath),
+               str(Config.defaultAudioTranscodeSubpath)) ],
+            # Video quality
+            ([ ('', Config.defaultQuality) ] +
+             [ (Quality, Quality) for Quality in Config.qualities ]),
+            # Video ripper
+            ([ ('', Config.defaultVideoRipper) ] +
+             [ (Ripper, Ripper) for Ripper in Config.videoRippers ]),
+            # Video archive
+            [ ('', str(Config.defaultVideoArchiveSubpath)),
+              (str(Config.defaultVideoArchiveSubpath),
+               str(Config.defaultVideoArchiveSubpath)) ],
+            # Video transcoder
+            ([ ('', Config.defaultVideoTranscoder) ] +
+             [ (Coder, Coder) for Coder in Config.videoTranscoders ]),
+            # Movie transcode subpath
+            [ ('', str(Config.defaultMovieTranscodeSubpath)),
+              (str(Config.defaultMovieTranscodeSubpath),
+               str(Config.defaultMovieTranscodeSubpath))],
+            # TV transcode subpath
+            [ ('', str(Config.defaultTVTranscodeSubpath)),
+              (str(Config.defaultTVTranscodeSubpath),
+               str(Config.defaultTVTranscodeSubpath)) ]
+        ]
+    )
 )
 def test_config_gen(
         tmp_path,
