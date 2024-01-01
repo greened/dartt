@@ -284,3 +284,28 @@ def test_config_dict(
                 DictStack.append((Dict[K], NewDict[K]))
                 continue
             assert NewDict[K] == Dict[K]
+
+def test_write(
+        tmp_path,
+        monkeypatch,
+        configFactory
+):
+    Config = configFactory()
+
+    ExpectedConfigDict = Config._items
+
+    with monkeypatch.context() as M:
+        # Use a fake home directory.  Config constructor should have created it.
+        HomeDir = tmp_path / 'home'
+        M.setattr('pathlib.Path.home', lambda: HomeDir)
+
+        ConfigPath = HomeDir / Config.defaultUserConfigSubpath
+
+        ConfigPath.parent.mkdir(parents=True)
+
+        Config.write(ConfigPath)
+
+        with open(ConfigPath, 'rb') as ConfigFile:
+            ConfigDict = tomllib.load(ConfigFile)
+
+        assert ConfigDict == ExpectedConfigDict
