@@ -246,14 +246,18 @@ class Config:
 
         if not any(Config.exists() for Config in self.configSearchPaths):
             if utils.yesno('No configuration found, create one'):
-                self._update(*self._create())
+                self._update(self._create())
 
         for ConfigFile in self.configSearchPaths:
             if ConfigFile.exists():
                 with open(ConfigFile, 'rb') as File:
                     self._items.update(tomllib.load(File))
 
-    def _update(self, ConfigDict, ConfigPath):
+    def write(self, Output: Path):
+        with open(Output, 'wb') as ConfigFile:
+            tomli_w.dump(self._items, ConfigFile)
+
+    def _update(self, ConfigPath):
         """Update the config file in the user's home directory.
 
         :returns: Dictionary containing the updated config contents
@@ -264,11 +268,11 @@ class Config:
             'NONE'
         )
 
-        ConfigDict['musicbrainz']['user'] = (
+        self._items['musicbrainz']['user'] = (
             MusicbrainzUser if MusicbrainzUser != 'NONE' else ''
         )
 
-        if ConfigDict['musicbrainz']['user']:
+        if self._items['musicbrainz']['user']:
             PassCmd = ''
             PassCmdList = []
             while len(PassCmd) == 0:
@@ -287,7 +291,7 @@ class Config:
                         # Try again.
                         PassCmd = ''
 
-            ConfigDict['musicbrainz']['password_cmd'] = PassCmdList
+            self._items['musicbrainz']['password_cmd'] = PassCmdList
 
         def found(Command: str):
             try:
@@ -299,14 +303,14 @@ class Config:
         BaseOutputDirectory = ''
         while not BaseOutputDirectory:
             BaseOutputDirectory = input('Base output directory: ')
-        ConfigDict['base_output_dir'] = BaseOutputDirectory
+        self._items['base_output_dir'] = BaseOutputDirectory
 
         AudioRippers = [Audio for Audio in self.audioRippers if found(Audio)]
         if AudioRippers:
             DefaultAudioRipper = (self.defaultAudioRipper
                                   if self.defaultAudioRipper in AudioRippers
                                   else AudioRippers[0])
-            ConfigDict['audio']['ripper'] = str(sh.which(
+            self._items['audio']['ripper'] = str(sh.which(
                 utils.menu(
                     'Default audio ripper', AudioRippers, DefaultAudioRipper
                 )
@@ -319,7 +323,7 @@ class Config:
                                  if self.defaultAudioTranscoder
                                  in AudioTranscoders
                                  else AudioTranscoders[0])
-            ConfigDict['audio']['transcoder'] = str(sh.which(
+            self._items['audio']['transcoder'] = str(sh.which(
                 utils.menu(
                     'Default audio transcoder',
                     AudioTranscoders,
@@ -327,7 +331,7 @@ class Config:
                 )
             ))
 
-            ConfigDict['audio']['quality'] = (
+            self._items['audio']['quality'] = (
                 utils.menu(
                     'Default audio quality',
                     self.qualities,
@@ -335,9 +339,9 @@ class Config:
                 )
             )
 
-            DefaultTranscodeDir = (Path(ConfigDict['base_output_dir']) /
+            DefaultTranscodeDir = (Path(self._items['base_output_dir']) /
                                    self.defaultAudioTranscodeSubpath)
-            ConfigDict['audio']['transcode_output_dir'] = (
+            self._items['audio']['transcode_output_dir'] = (
                 utils.query(
                     'Default audio transcode directory',
                     str(DefaultTranscodeDir)
@@ -349,7 +353,7 @@ class Config:
             DefaultVideoRipper = (self.defaultVideoRipper
                                   if self.defaultVideoRipper in VideoRippers
                                   else VideoRippers[0])
-            ConfigDict['video']['ripper'] = str(sh.which(
+            self._items['video']['ripper'] = str(sh.which(
                 utils.menu(
                     'Default video ripper',
                     VideoRippers,
@@ -358,9 +362,9 @@ class Config:
             ))
 
             DefaultArchiveOutputDirectory = (
-                ConfigDict['base_output_dir'] / self.defaultVideoArchiveSubpath
+                self._items['base_output_dir'] / self.defaultVideoArchiveSubpath
             )
-            ConfigDict['video']['archive_output_dir'] = (
+            self._items['video']['archive_output_dir'] = (
                 utils.query(
                     'Archive directory',
                     str(DefaultArchiveOutputDirectory)
@@ -373,7 +377,7 @@ class Config:
             DefaultTranscoder =  (self.defaultVideoTranscoder
                                   if self.defaultVideoTranscoder in
                                   VideoTranscoders else VideoTranscoders[0])
-            ConfigDict['video']['transcoder'] = str(sh.which(
+            self._items['video']['transcoder'] = str(sh.which(
                 utils.menu(
                     'Default video transcoder',
                     VideoTranscoders,
@@ -381,7 +385,7 @@ class Config:
                 )
             ))
 
-            ConfigDict['video']['quality'] = (
+            self._items['video']['quality'] = (
                 utils.menu(
                     'Default video quality',
                     self.qualities,
@@ -389,26 +393,25 @@ class Config:
                 )
             )
 
-            DefaultTranscodeDir = (Path(ConfigDict['base_output_dir']) /
+            DefaultTranscodeDir = (Path(self._items['base_output_dir']) /
                                    self.defaultMovieTranscodeSubpath)
-            ConfigDict['video']['movies']['transcode_output_dir'] = (
+            self._items['video']['movies']['transcode_output_dir'] = (
                 utils.query(
                     'Default movie transcode directory',
                     str(DefaultTranscodeDir)
                 )
             )
 
-            DefaultTranscodeDir = (Path(ConfigDict['base_output_dir']) /
+            DefaultTranscodeDir = (Path(self._items['base_output_dir']) /
                                    self.defaultTVTranscodeSubpath)
-            ConfigDict['video']['tv']['transcode_output_dir'] = (
+            self._items['video']['tv']['transcode_output_dir'] = (
                 utils.query(
                     'Default TV transcode directory',
                     str(DefaultTranscodeDir)
                 )
             )
 
-            with open(ConfigPath, 'wb') as ConfigFile:
-                tomli_w.dump(ConfigDict, ConfigFile)
+            self.write(ConfigPath)
 
     def _create(self):
         """Create an empty config file.
@@ -453,11 +456,10 @@ class Config:
 
         ConfigPath.parent.mkdir(exist_ok=True, parents=True)
 
-        with open(ConfigPath, 'wb') as ConfigFile:
-            tomli_w.dump(ConfigDict, ConfigFile)
+        self._items = ConfigDict
+        self.write(ConfigPath)
 
-        with open(ConfigPath, 'rb') as ConfigFile:
-            return (tomllib.load(ConfigFile), ConfigPath)
+        return ConfigPath
 
     def __setitem__(self, key, item):
         self._items[key] = item
