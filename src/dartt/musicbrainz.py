@@ -22,6 +22,7 @@ import discid
 import logging
 import musicbrainzngs as mb
 import sh
+from typing import List
 
 import dartt.config as config
 
@@ -38,9 +39,20 @@ class TrackInfo:
         self._Title = Recording['title']
         self._Artist = Recording['artist-credit-phrase']
 
+    @property
+    def Number(self):
+        return self._Number
+
+    @property
+    def Title(self):
+        return self._Title
+
+    @property
+    def Artist(self):
+        return self._Artist
 
     def __repr__(self):
-        return f'Track {self._Number}: {self._Title} - {self._Artist}'
+        return f'Track {self.Number}: {self.Title} - {self.Artist}'
 
 class DiscInfo:
     def __init__(
@@ -73,8 +85,11 @@ class DiscInfo:
             if Barcode:
                 self._Barcode = Barcode
 
+            Mediums = Releases[0]['medium-list']
+            assert len(Mediums) == 1, "Unexpected multiple mediums"
+
             TrackList = []
-            for Medium in Releases[0]['medium-list']:
+            for Medium in Mediums:
                 for Track in Medium['track-list']:
                     TrackList.append(TrackInfo(Track))
 
@@ -109,9 +124,29 @@ class DiscInfo:
             processReleases(self._Releases)
             return
 
-    def __repr__(self):
-        return (f'Disc ID: {self._ID} Title: {self._Title} '
-                f'Barcode: {self._Barcode} - {self._Artists} - {self._Tracks}')
+    @property
+    def ID(self) -> str:
+        return self._ID
+
+    @property
+    def Title(self) -> str:
+        return self._Title
+
+    @property
+    def Barcode(self):
+        return self._Barcode
+
+    @property
+    def Artists(self) -> List[str]:
+        return self._Artists
+
+    @property
+    def Tracks(self) -> List[TrackInfo]:
+        return self._Tracks
+
+    def __repr__(self) -> str:
+        return (f'Disc ID: {self.ID} Title: {self.Title} '
+                f'Barcode: {self.Barcode} - {self.Artists} - {self.Tracks}')
 
 class MusicBrainz:
     def __init__(
