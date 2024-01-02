@@ -24,8 +24,8 @@ from typing import Callable
 
 import dartt.audiocd  as audiocd
 import dartt.config as config
-import dartt.device as device
 import dartt.musicbrainz as mb
+import dartt.optical as optical
 
 def test_audiocd(
         tmp_path,
@@ -59,7 +59,7 @@ def test_audiocd(
         M.setattr('sh.Command', lambda Name: commandFactory(Name, 'password'))
 
         MBrainz = mb.MusicBrainz(Config)
-        Drive = device.detectOpticalDrives(Config)[0]
+        Drive = optical.detectOpticalDrives(Config)[0]
         CD = audiocd.AudioCD(Drive, MBrainz)
 
         assert CD.getTitle() == MB.releaseTitle()
