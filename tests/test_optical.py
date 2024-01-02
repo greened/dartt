@@ -20,8 +20,7 @@
 # You should have received a copy of the GNU Affero General Public License along
 # with dartt. If not, see <https://www.gnu.org/licenses/>.
 
-import dartt.device as dev
-import dartt.disc as disc
+import dartt.optical as optical
 from dartt.audiocd import AudioCD
 from dartt.dvd import DVD
 from dartt.bluray import BluRay
@@ -52,9 +51,9 @@ def test_detectOpticalDrives(
     with monkeypatch.context() as M:
         M.setattr('sh.Command', lambda Name: commandFactory(Name, 'password'))
 
-        assert dev.detectOpticalDrives(Config)
+        assert optical.detectOpticalDrives(Config)
 
-        for Device, Name in zip(dev.detectOpticalDrives(Config), DeviceNames):
+        for Device, Name in zip(optical.detectOpticalDrives(Config), DeviceNames):
             assert Device.id == Name
 
 @pytest.mark.parametrize(
@@ -91,9 +90,9 @@ def test_Device_open(
         )
         M.setattr('sh.Command', lambda Name: commandFactory(Name, 'password'))
 
-        assert dev.detectOpticalDrives(Config)
+        assert optical.detectOpticalDrives(Config)
 
-        for Device in dev.detectOpticalDrives(Config):
+        for Device in optical.detectOpticalDrives(Config):
             assert isinstance(Device.open(), ExpectedType)
 
 def test_Device_open_failure(
@@ -127,8 +126,8 @@ def test_Device_open_failure(
         )
         M.setattr('sh.Command', lambda Name: commandFactory(Name, 'password'))
 
-        assert dev.detectOpticalDrives(Config)
+        assert optical.detectOpticalDrives(Config)
 
-        for Device in dev.detectOpticalDrives(Config):
+        for Device in optical.detectOpticalDrives(Config):
             with pytest.raises(RuntimeError):
                 Disc = Device.open()
