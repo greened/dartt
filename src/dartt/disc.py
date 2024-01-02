@@ -31,6 +31,10 @@ class Track:
     def __init__(self, Archive: Path):
         self._Archive = Archive
 
+    @property
+    def RippedPath(self):
+        return self._Archive
+
 class AudioTrack(Track):
     def __init__(self, ArchivePath: str, TrackInfo: mb.TrackInfo):
         super().__init__(ArchivePath)
