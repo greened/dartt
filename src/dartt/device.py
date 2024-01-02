@@ -66,13 +66,13 @@ class OpticalDrive(Device):
     from dartt.disc import Disc
     def open(self) -> Disc:
         if 'ID_CDROM_MEDIA_CD' in self._Device.keys():
-            from dartt.disc import AudioCD
+            from dartt.audiocd import AudioCD
             return AudioCD(self, self._Musicbrainz)
         if 'ID_CDROM_MEDIA_DVD' in self._Device.keys():
-            from dartt.disc import DVD
+            from dartt.dvd import DVD
             return DVD(self)
         if 'ID_CDROM_MEDIA_BD' in self._Device.keys():
-            from dartt.disc import BluRay
+            from dartt.bluray import BluRay
             return BluRay(self)
 
         raise DeviceNotReadyError(self.path)
