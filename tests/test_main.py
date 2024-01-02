@@ -15,8 +15,8 @@ def test_main_no_args(
     with monkeypatch.context() as M:
         # Disable things that need user input or might generate errors.
         M.setattr('dartt.config.readConfig', lambda: None)
-        M.setattr('dartt.device.OpticalDrive.open', lambda _: None)
-        M.setattr('dartt.device.detectOpticalDrives', lambda _: [])
+        M.setattr('dartt.optical.OpticalDrive.open', lambda _: None)
+        M.setattr('dartt.optical.detectOpticalDrives', lambda _: [])
 
         main()
 
@@ -54,8 +54,8 @@ def test_main_msg_level(
         M.setattr('dartt.config.readConfig', genOutput)
 
         # Disable things that need user input or might generate errors.
-        M.setattr('dartt.device.OpticalDrive.open', lambda _: None)
-        M.setattr('dartt.device.detectOpticalDrives', lambda _: [])
+        M.setattr('dartt.optical.OpticalDrive.open', lambda _: None)
+        M.setattr('dartt.optical.detectOpticalDrives', lambda _: [])
 
         # Set the message level.
         M.setattr('sys.argv', [ sys.argv[0], '--msg-level', MsgLevel])

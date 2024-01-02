@@ -63,10 +63,10 @@ def main():
     if ParsedArgs.config:
         Config.reconfig()
 
-    from dartt.device import detectOpticalDrives
+    from dartt.optical import detectOpticalDrives
     OpticalDrives = detectOpticalDrives(Config)
 
-    from dartt.device import DeviceNotReadyError
+    from dartt.optical import DeviceNotReadyError
     for Drive in OpticalDrives:
         try:
             Media = Drive.open()
