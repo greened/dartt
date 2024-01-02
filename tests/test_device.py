@@ -22,125 +22,13 @@
 
 import dartt.device as dev
 import dartt.disc as disc
+from dartt.audiocd import AudioCD
+from dartt.dvd import DVD
+from dartt.bluray import BluRay
 import discid
 import pytest
 import sh
 from typing import Callable, Dict, Iterable, Sequence
-
-class MockDevice:
-    def __init__(
-            self,
-            Name: str,
-            Node: str,
-            Type: str
-    ):
-        if Type == 'CD':
-            self._Properties = {
-                'ID_CDROM_MEDIA': '1',
-                'ID_CDROM_MEDIA_CD': '1',
-                'ID_CDROM_MEDIA_SESSION_COUNT': '1',
-                'ID_CDROM_MEDIA_TRACK_COUNT': '21',
-                'ID_CDROM_MEDIA_TRACK_COUNT_AUDIO': '21',
-            }
-        elif Type == 'DVD':
-            self._Properties = {
-                'ID_CDROM_MEDIA': '1',
-                'ID_CDROM_MEDIA_DVD': '1',
-                'ID_CDROM_MEDIA_SESSION_COUNT': '21',
-                'ID_CDROM_MEDIA_STATE': 'complete',
-                'ID_CDROM_MEDIA_TRACK_COUNT': '1',
-                'ID_CDROM_MEDIA_TRACK_COUNT_DATA': '1',
-                'ID_FS_APPLICATION_ID': 'DVDAfterEdit',
-                'ID_FS_BLOCKSIZE': '2048',
-                'ID_FS_LABEL': 'A_GOOD_MOVIE',
-                'ID_FS_LABEL_ENC': 'A_GOOD_MOVIE',
-                'ID_FS_LOGICAL_VALUE_ID': 'A_GOOD_MOVIE',
-                'ID_FS_TYPE': 'udf',
-                'ID_FS_USAGE': 'filesystem',
-                'ID_FS_UUID': '33fe932d00000000',
-                'ID_FS_UUID_ENC': '33fe932d00000000',
-                'ID_FS_VERSION': '1.02',
-                'ID_FS_VOLUME_ID': 'A_GOOD_MOVIE',
-                'ID_FS_VOLUME_SET_ID': '33fe932d',
-            }
-        elif Type == 'BD':
-            self._Properties = {
-                'ID_CDROM_MEDIA': '1',
-                'ID_CDROM_MEDIA_BD': '1',
-                'ID_CDROM_MEDIA_SESSION_COUNT': '21',
-                'ID_CDROM_MEDIA_STATE': 'complete',
-                'ID_CDROM_MEDIA_TRACK_COUNT': '1',
-                'ID_CDROM_MEDIA_TRACK_COUNT_DATA': '1',
-                'ID_FS_APPLICATION_ID': 'APPLICATION_ID',
-                'ID_FS_BLOCKSIZE': '2048',
-                'ID_FS_LABEL': 'Another_Good_Movie',
-                'ID_FS_LABEL_ENC': 'Another_Good_Movie',
-                'ID_FS_LOGICAL_VALUE_ID': 'Another_Good_Movie',
-                'ID_FS_TYPE': 'udf',
-                'ID_FS_USAGE': 'filesystem',
-                'ID_FS_UUID': '33fe932d91fa3de2',
-                'ID_FS_UUID_ENC': '33fe932d91fa3de2',
-                'ID_FS_VERSION': '2.50',
-                'ID_FS_VOLUME_ID': 'Another_Good_Movie',
-                'ID_FS_VOLUME_SET_ID': '33FE932D91fA3DE2_VOLUME_SET_ID',
-            }
-        else:
-            self._Properties = {}
-
-        self._Properties['ID_CDROM'] = '1'
-        self._SysName = Name
-        self._DeviceNode = Node
-
-    @property
-    def properties(
-            self
-    ) -> Dict[str, str]:
-        return self._Properties
-
-    def keys(
-            self
-    ) -> Iterable[str]:
-        return self._Properties.keys()
-
-    @property
-    def sys_name(
-            self
-    ) -> str:
-        return self._SysName
-
-    @property
-    def device_node(
-            self
-    ) ->str:
-        return self._DeviceNode
-
-class MockDevices:
-    def __init__(
-            self,
-            Names: Sequence[str],
-            Nodes: Sequence[str],
-            Type: str
-    ):
-        self._Names = Names
-        self._Nodes = Nodes
-        self._Type = Type
-
-    def match(self, **kwargs):
-        return [ MockDevice(Name, Node, self._Type)
-                 for Name, Node in zip(self._Names, self._Nodes) ]
-
-@pytest.fixture
-def deviceFactory(
-        request
-) -> Callable[[Sequence[str]], MockDevice]:
-    def makeDevices(
-            Names: Sequence[str],
-            Nodes: Sequence[str],
-            DiscType: str
-    ) -> MockDevices:
-        return MockDevices(Names, Nodes, DiscType)
-
-    return makeDevices
 
 @pytest.mark.parametrize(
     'DeviceNames, DeviceNodes', [ ('sr0', '/dev/sr0'), ('sr1', '/dev/sr1'),
@@ -149,14 +37,14 @@ def deviceFactory(
 def test_detectOpticalDrives(
         monkeypatch,
         configFactory,
-        deviceFactory,
+        devicesFactory,
         commandFactory,
         DeviceNames,
         DeviceNodes
 ):
     monkeypatch.setattr(
         'pyudev.Context.list_devices',
-        lambda s, **kwargs: deviceFactory(DeviceNames, DeviceNodes, 'CD')
+        lambda s, **kwargs: devicesFactory(DeviceNames, DeviceNodes, 'CD')
     )
 
     Config = configFactory()
@@ -171,13 +59,13 @@ def test_detectOpticalDrives(
 
 @pytest.mark.parametrize(
     'DiscType,ExpectedType', [
-        ('CD', disc.AudioCD), ('DVD', disc.DVD), ('BD', disc.BluRay)
+        ('CD', AudioCD), ('DVD', DVD), ('BD', BluRay)
     ]
 )
 def test_Device_open(
         monkeypatch,
         configFactory,
-        deviceFactory,
+        devicesFactory,
         DiscIDFactory,
         MBFactory,
         commandFactory,
@@ -186,7 +74,7 @@ def test_Device_open(
 ):
     monkeypatch.setattr(
         'pyudev.Context.list_devices',
-        lambda s, **kwargs: deviceFactory(['sr0'], ['/dev/sr0'], DiscType)
+        lambda s, **kwargs: devicesFactory(['sr0'], ['/dev/sr0'], DiscType)
     )
 
     Config = configFactory()
@@ -211,14 +99,14 @@ def test_Device_open(
 def test_Device_open_failure(
         monkeypatch,
         configFactory,
-        deviceFactory,
+        devicesFactory,
         DiscIDFactory,
         MBFactory,
         commandFactory
 ):
     monkeypatch.setattr(
         'pyudev.Context.list_devices',
-        lambda s, **kwargs: deviceFactory(
+        lambda s, **kwargs: devicesFactory(
             ['sr0', 'sr6'],
             ['/dev/sr0', '/dev/sr6'],
             ''
