@@ -185,24 +185,24 @@ def configFactory(
             'user': 'dartt',
             'password_cmd': ["pass", "musicbrainz.org/password"],
         },
-        'base_output_dir': '/home/me',
+        'base_output_dir': str(tmp_path / 'home/me'),
         'audio': {
             'quality': 'Very High',
             'ripper': '/usr/bin/cdparanoia',
-            'archive_output_dir': '/home/me/archive/audio',
+            'archive_output_dir': str(tmp_path / 'home/me/archive/audio'),
             'transcoder': '/usr/bin/flac',
-            'transcode_output_dir': '/home/me/music',
+            'transcode_output_dir': str(tmp_path / 'home/me/music'),
         },
         'video': {
             'quality': 'Very High',
             'ripper': 'makemkvcon',
-            'archive_output_dir': '/home/me/archive/video',
+            'archive_output_dir': str(tmp_path / 'home/me/archive/video'),
             'transcoder': 'HandbrakeCLI',
             'tv': {
-                'transcode_output_dir': '/home/me/movies',
+                'transcode_output_dir': str(tmp_path / 'home/me/movies'),
             },
             'movies': {
-                'transcode_output_dir': '/home/me/tv',
+                'transcode_output_dir': str(tmp_path / 'home/me/tv'),
             }
         }
     }
