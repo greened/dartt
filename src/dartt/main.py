@@ -73,3 +73,6 @@ def main():
         except DeviceNotReadyError as RE:
             print(str(RE))
             return ExitCode.DeviceNotReady.value
+
+        Tracks = Media.rip(Config)
+        logging.debug(f'Ripped tracks: {Tracks}')
