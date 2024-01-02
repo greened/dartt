@@ -53,3 +53,53 @@ def test_lookup(
                              f'Barcode: {MB.releaseBarcode()} - '
                              f'[\'{MB.releaseArtistName()}\'] - '
                              f'[{", ".join(TrackInfo)}]')
+
+def test_disc_info(
+        monkeypatch,
+        MBFactory,
+        DiscIDFactory,
+        configFactory,
+):
+    MB = MBFactory()
+    DiscID = DiscIDFactory()
+    Config = configFactory()
+
+    with monkeypatch.context() as M:
+        M.setattr(
+            'musicbrainzngs.get_releases_by_discid',
+            lambda *args, **kwargs: MB.info
+        )
+        M.setattr('sh.Command', lambda name: lambda *args: 'password')
+
+        Info = mb.MusicBrainz(Config).getDiscInfo(DiscID)
+
+        assert Info.ID == MB.releaseID()
+        assert Info.Title ==  MB.releaseTitle()
+        assert Info.Barcode ==  MB.releaseBarcode()
+        assert Info.Artists == [ MB.releaseArtistName() ]
+
+def test_track_info(
+        monkeypatch,
+        MBFactory,
+        DiscIDFactory,
+        configFactory,
+):
+    MB = MBFactory()
+    DiscID = DiscIDFactory()
+    Config = configFactory()
+
+    with monkeypatch.context() as M:
+        M.setattr(
+            'musicbrainzngs.get_releases_by_discid',
+            lambda *args, **kwargs: MB.info
+        )
+        M.setattr('sh.Command', lambda name: lambda *args: 'password')
+
+        Info = mb.MusicBrainz(Config).getDiscInfo(DiscID)
+
+        assert len(Info.Tracks) == len(MB.releaseTracks())
+
+        for Track, MBTrack in zip(Info.Tracks, MB.releaseTracks()):
+            assert Track.Number == MBTrack['number']
+            assert Track.Title == MBTrack['title']
+            assert Track.Artist == MBTrack['artist']
