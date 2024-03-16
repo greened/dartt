@@ -249,16 +249,16 @@ def test_config_gen(
             },
             'base_output_dir': str(BaseOutputDir),
             'audio': {
-                'ripper': str(sh.which(ExpectedAudioRipper)),
+                'ripper': str(sh.which(ExpectedAudioRipper)).strip(),
                 'archive_output_dir': str(BaseOutputDir / ExpectedAudioArchiveSubpath),
-                'transcoder': str(sh.which(ExpectedAudioTranscoder)),
+                'transcoder': str(sh.which(ExpectedAudioTranscoder)).strip(),
                 'quality': ExpectedAudioQuality,
                 'transcode_output_dir': str(BaseOutputDir / ExpectedAudioTranscodeSubpath),
             },
             'video': {
-                'ripper': str(sh.which(ExpectedVideoRipper)),
+                'ripper': str(sh.which(ExpectedVideoRipper)).strip(),
                 'archive_output_dir': str(BaseOutputDir / ExpectedVideoArchiveSubpath),
-                'transcoder': str(sh.which(ExpectedVideoTranscoder)),
+                'transcoder': str(sh.which(ExpectedVideoTranscoder)).strip(),
                 'quality': ExpectedVideoQuality,
                 'movies': {
                     'transcode_output_dir': str(BaseOutputDir / ExpectedMovieTranscodeSubpath),
@@ -496,7 +496,8 @@ def test_reconfig(
         M.setattr('builtins.input', genInput)
 
         # Find all tools.
-        M.setattr('sh.which', lambda Tool: Path('/usr') / 'bin' / Tool)
+        M.setattr('sh.which',
+                  lambda Tool: Path('/usr') / 'bin' / Tool)
 
         NewConfig.reconfig()
 

@@ -129,7 +129,7 @@ class InputSequence:
 
         """
         assert len(self._Input) > 0
-        Value = self._Input.pop(0)
+        Value = self._Input.pop(0) + '\n'
         print(f'Generating input "{Value}"')
         return Value
 
