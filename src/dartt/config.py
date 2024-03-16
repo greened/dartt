@@ -372,7 +372,7 @@ class Config:
                     AudioRippers,
                     self.getAudioRipperType() or DefaultAudioRipper
                 )
-            ))
+            ).strip())
 
             DefaultAudioArchiveOutputDirectory = (
                 self._items['base_output_dir'] / self.defaultAudioArchiveSubpath
@@ -398,7 +398,7 @@ class Config:
                     AudioTranscoders,
                     self.getAudioTranscoderType() or DefaultTranscoder
                 )
-            ))
+            ).strip())
 
             self._items['audio']['quality'] = (
                 utils.menu(
@@ -429,7 +429,7 @@ class Config:
                     VideoRippers,
                     self.getVideoRipperType() or DefaultVideoRipper
                 )
-            ))
+            ).strip())
 
             DefaultVideoArchiveOutputDirectory = (
                 self._items['base_output_dir'] / self.defaultVideoArchiveSubpath
@@ -454,7 +454,7 @@ class Config:
                     VideoTranscoders,
                     self.getVideoTranscoderType() or DefaultTranscoder
                 )
-            ))
+            ).strip())
 
             self._items['video']['quality'] = (
                 utils.menu(
