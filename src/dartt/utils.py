@@ -34,7 +34,7 @@ def yesno(
 
     """
     while True:
-        Answer = input(f'{Msg}? (y/n) ')
+        Answer = input(f'{Msg}? (y/n) ').strip()
         if Answer.lower() in ["y","yes"]:
             return True
         elif Answer.lower() in ["n","no"]:
@@ -55,7 +55,7 @@ def query(
     Message = (f'{Msg} [{Default}]' if Default is not None and len(Default) > 0
                else Msg)
     while True:
-        Result = input(f'{Message}: ') or Default
+        Result = input(f'{Message}: ').strip() or Default
         if Result:
             return Result
 
