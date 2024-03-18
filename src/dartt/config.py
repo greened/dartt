@@ -484,7 +484,7 @@ class Config:
                 )
             )
 
-            self.write(ConfigPath)
+        self.write(ConfigPath)
 
     def _create(self):
         """Create an empty config file.
