@@ -502,3 +502,100 @@ def test_reconfig(
         NewConfig.reconfig()
 
     assert NewConfig._items == NewConfigDict
+
+def test_partial_config_gen(
+        tmp_path,
+        monkeypatch,
+        inputSequenceFactory,
+):
+    with monkeypatch.context() as M:
+        # Force the config to not exist.
+        M.setattr('pathlib.Path.exists', lambda _: False)
+
+        # Use a fake home directory.
+        HomeDir = tmp_path / 'home'
+        HomeDir.mkdir()
+        M.setattr('pathlib.Path.home', lambda: HomeDir)
+
+        class MockStdOut:
+            def decode(self, kind, cmd) -> str:
+                return ''
+
+            def __getitem__(self, val) -> str:
+                return self
+
+            def __len__(self):
+                return 0
+
+        # Find all tools except a video ripper or transcoder, causing us to skip
+        # configuring video settings.
+        def which(Tool: str):
+            if Tool == 'makemkvcon' or Tool == 'HandbrakeCLI':
+                raise sh.ErrorReturnCode_1(Tool, MockStdOut(), MockStdOut())
+            return HomeDir / 'bin' / Tool
+
+        M.setattr('sh.which', which)
+
+        BaseOutputDir = HomeDir / 'base'
+        BaseOutputDir.mkdir()
+
+        # Create an input sequence.
+
+        Input = inputSequenceFactory(
+            [
+                'y',                # Say that we want to create a config.
+                '',                 # Default config path
+                'dartt',            # Musicbrainz user
+                '',                 # Default password
+                str(BaseOutputDir), # Specify base directory.
+                '',                 # Default audio ripper
+                '',                 # Default audio archive patch
+                '',                 # Default audio transcoder
+                '',                 # Default audio quality
+                '',                 # Default audio transcode path
+            ]
+        )
+
+        def genInput(Prompt: str):
+            print(Prompt)
+            return Input.generateInput()
+
+        M.setattr('builtins.input', genInput)
+
+        Expected = {
+            'base_output_dir': str(BaseOutputDir),
+            'musicbrainz': {
+                'user': 'dartt',
+                'password_cmd': ["pass", "musicbrainz.org/password"],
+            },
+            'audio': {
+                'quality': Config.defaultQuality,
+                'ripper': str(sh.which(Config.defaultAudioRipper)),
+                'archive_output_dir': str(BaseOutputDir / Config.defaultAudioArchiveSubpath),
+                'transcoder': str(sh.which(Config.defaultAudioTranscoder)),
+                'transcode_output_dir': str(BaseOutputDir / Config.defaultAudioTranscodeSubpath),
+            },
+            'video': {
+                'quality': '',
+                'ripper': '',
+                'archive_output_dir': '',
+                'transcoder': '',
+                'tv': {
+                    'transcode_output_dir': ''
+                },
+                'movies': {
+                    'transcode_output_dir': ''
+                }
+            }
+        }
+
+        ConfigPath = HomeDir / Config.defaultUserConfigSubpath
+
+        conf = Config()
+
+        with open(ConfigPath, 'rb') as ConfigFile:
+            ConfigDict = tomllib.load(ConfigFile)
+
+        print(f'ConfigDict: {ConfigDict}')
+        print(f'Expected: {Expected}')
+        assert ConfigDict == Expected
