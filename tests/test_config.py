@@ -165,7 +165,7 @@ def test_config_gen(
         M.setattr('pathlib.Path.home', lambda: HomeDir)
 
         # Find all tools.
-        M.setattr('sh.which', lambda Tool: str(HomeDir / 'bin' / Tool) + '\n')
+        M.setattr('sh.which', lambda Tool: HomeDir / 'bin' / Tool)
 
         BaseOutputDir = HomeDir / 'base'
         BaseOutputDir.mkdir()
@@ -249,16 +249,16 @@ def test_config_gen(
             },
             'base_output_dir': str(BaseOutputDir),
             'audio': {
-                'ripper': str(sh.which(ExpectedAudioRipper).strip()),
+                'ripper': str(sh.which(ExpectedAudioRipper)).strip(),
                 'archive_output_dir': str(BaseOutputDir / ExpectedAudioArchiveSubpath),
-                'transcoder': str(sh.which(ExpectedAudioTranscoder).strip()),
+                'transcoder': str(sh.which(ExpectedAudioTranscoder)).strip(),
                 'quality': ExpectedAudioQuality,
                 'transcode_output_dir': str(BaseOutputDir / ExpectedAudioTranscodeSubpath),
             },
             'video': {
-                'ripper': str(sh.which(ExpectedVideoRipper).strip()),
+                'ripper': str(sh.which(ExpectedVideoRipper)).strip(),
                 'archive_output_dir': str(BaseOutputDir / ExpectedVideoArchiveSubpath),
-                'transcoder': str(sh.which(ExpectedVideoTranscoder).strip()),
+                'transcoder': str(sh.which(ExpectedVideoTranscoder)).strip(),
                 'quality': ExpectedVideoQuality,
                 'movies': {
                     'transcode_output_dir': str(BaseOutputDir / ExpectedMovieTranscodeSubpath),
@@ -497,7 +497,7 @@ def test_reconfig(
 
         # Find all tools.
         M.setattr('sh.which',
-                  lambda Tool: str(Path('/usr') / 'bin' / Tool) + '\n')
+                  lambda Tool: Path('/usr') / 'bin' / Tool)
 
         NewConfig.reconfig()
 
@@ -570,9 +570,9 @@ def test_partial_config_gen(
             },
             'audio': {
                 'quality': Config.defaultQuality,
-                'ripper': str(sh.which(Config.defaultAudioRipper)),
+                'ripper': str(sh.which(Config.defaultAudioRipper)).strip(),
                 'archive_output_dir': str(BaseOutputDir / Config.defaultAudioArchiveSubpath),
-                'transcoder': str(sh.which(Config.defaultAudioTranscoder)),
+                'transcoder': str(sh.which(Config.defaultAudioTranscoder)).strip(),
                 'transcode_output_dir': str(BaseOutputDir / Config.defaultAudioTranscodeSubpath),
             },
             'video': {
