@@ -77,8 +77,8 @@ def menu(
     DefaultKey = None
     if Default is not None and len(Default) > 0:
         Keys = [ f'{K}' for K,V in Choices.items() if V == Default ]
-        assert len(Keys) == 1, f'{len(Keys)} matches to {Default}'
-        DefaultKey = Keys[0]
+        if (len(Keys) > 0):
+            DefaultKey = Keys[0]
 
     while True:
         for (Key, Value) in Choices.items():
