@@ -599,3 +599,121 @@ def test_partial_config_gen(
         print(f'ConfigDict: {ConfigDict}')
         print(f'Expected: {Expected}')
         assert ConfigDict == Expected
+
+def test_reconfig_bad_default(
+        tmp_path,
+        monkeypatch,
+        configFactory,
+        inputSequenceFactory
+):
+    ConfigDict = {
+        'musicbrainz': {
+            'user': 'dartt',
+            'password_cmd': ["pass", "musicbrainz.org/dartt/password"],
+        },
+        'base_output_dir': '/home/me',
+        'audio': {
+            'quality': 'High',
+            'ripper': '/usr/bin/cdparanoia\n',
+            'archive_output_dir': '/home/me/archive/audio',
+            'transcoder': '/usr/bin/oggenc',
+            'transcode_output_dir': '/home/me/music',
+        },
+        'video': {
+            'quality': 'Low',
+            'ripper': '/usr/bin/makemkvcon',
+            'transcoder': '/user/bin/HandbrakeCLI',
+            'archive_output_dir': '/home/me/archive/video',
+            'tv': {
+                'transcode_output_dir': '/home/me/movies',
+            },
+            'movies': {
+                'transcode_output_dir': '/home/me/tv',
+            }
+        }
+    }
+
+    NewConfigDict = {
+        'musicbrainz': {
+            'user': 'dartt',
+            'password_cmd': ["pass", "musicbrainz.org/dartt/password"],
+        },
+        'base_output_dir': '/home/me',
+        'audio': {
+            'quality': 'Low',
+            'ripper': '/usr/bin/cdparanoia',
+            'archive_output_dir': '/home/me/archive/audio',
+            'transcoder': '/usr/bin/oggenc',
+            'transcode_output_dir': '/home/me/music',
+        },
+        'video': {
+            'quality': 'High',
+            'ripper': '/usr/bin/makemkvcon',
+            'transcoder': '/usr/bin/HandbrakeCLI',
+            'archive_output_dir': '/home/me/archive/video',
+            'tv': {
+                'transcode_output_dir': '/home/me/movies',
+            },
+            'movies': {
+                'transcode_output_dir': '/home/me/tv',
+            }
+        }
+    }
+
+    def getValueKey(
+            Value: str,
+            Seq: Sequence[str]
+    ) -> str:
+        Keys = [ f'{K}' for K,V in enumerate(Seq) if V == Value ]
+        if Keys:
+            return Keys[0]
+        return ''
+
+    with monkeypatch.context() as M:
+        # Use a fake home directory.
+        HomeDir = tmp_path / 'home'
+
+        M.setattr('pathlib.Path.home', lambda: HomeDir)
+
+        NewConfig = configFactory(ConfigDict)
+
+        assert NewConfig._items == ConfigDict
+
+        ConfigPath = HomeDir / Config.defaultUserConfigSubpath
+
+        ConfigPath.parent.mkdir(parents=True)
+
+        NewConfig.write(ConfigPath)
+
+        Input = inputSequenceFactory(
+            [
+                '',
+                '',
+                '',
+                '0',
+                '',
+                '',
+                getValueKey('Low', Config.qualities),
+                '',
+                '',
+                '',
+                '',
+                getValueKey('High', Config.qualities),
+                '',
+                ''
+            ]
+        )
+
+        def genInput(Prompt: str):
+            print(Prompt)
+            return Input.generateInput()
+
+        M.setattr('builtins.input', genInput)
+
+        # Find all tools.
+        M.setattr('sh.which',
+                  lambda Tool: Path('/usr') / 'bin' / Tool)
+
+        NewConfig.reconfig()
+
+    assert NewConfig._items == NewConfigDict
