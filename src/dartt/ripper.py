@@ -29,6 +29,7 @@ from typing import List
 
 import dartt.config as config
 from dartt.disc import AudioDisc, AudioTrack
+import dartt.utils as utils
 
 class Ripper(ABC):
     def __init__(
@@ -68,7 +69,7 @@ class CDParanoiaRipper(AudioRipper):
         super().__init__(Config)
         self.CDParanoia = Config.getAudioRipperCommand()
         self.ArchivePath = Path(Config.getAudioArchiveDir())
-        self.Args = [ '--batch' ]
+        self.Args = [ '--batch', '--stderr-progress' ]
 
     def rip(self, Disc: AudioDisc) -> List[AudioTrack]:
         # TODO: Make this configurable.
@@ -79,16 +80,23 @@ class CDParanoiaRipper(AudioRipper):
 
         with TemporaryDirectory() as TempDir:
             with chdir(TempDir):
+                print(f'Ripping audio disc "{Disc.getTitle()}"')
+                for TrackInfo in Disc.getTrackInfo():
+                    print(f'Track {TrackInfo.Number:>02}: {TrackInfo.Title}')
+
                 cmd = sh.Command(self.CDParanoia)
-                cmd(self.Args)
+                running = cmd(self.Args, _bg=True, _out=utils.printOutputCallback,
+                              _out_bufsize=0, _err=utils.printOutputCallback,
+                              _err_bufsize=0)
+                running.wait()
 
             Tracks = []
             for TrackInfo in Disc.getTrackInfo():
                 # TODO: Make this configurable.
                 RippedPath = (Path(TempDir) /
-                              f'track{TrackInfo.Number:02}.cdda.wav')
+                              f'track{TrackInfo.Number:>02}.cdda.wav')
                 TrackPath = (ArchivePath /
-                             f'{TrackInfo.Number:02}. {TrackInfo.Title}.wav')
+                             f'{TrackInfo.Number:>02}. {TrackInfo.Title}.wav')
 
                 logging.debug(
                     f'RippedPath: {RippedPath} Exists: {RippedPath.exists()}'
@@ -99,6 +107,7 @@ class CDParanoiaRipper(AudioRipper):
                     logging.debug(
                         f'TrackPath: {TrackPath} Exists: {TrackPath.exists()}'
                     )
+                    print(f'Ripped {TrackPath}')
                     Tracks.append(AudioTrack(TrackPath, TrackInfo))
 
         return Tracks
