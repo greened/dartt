@@ -30,15 +30,20 @@ import dartt.optical as optical
 from dartt.ripper import CDParanoiaRipper
 
 class MockRipper:
+    class MockProcess:
+        def wait(self):
+            pass
+
     def __init__(self, CD: audiocd.AudioCD, RipPath: Path):
         self.CD  = CD
         self.RipPath = RipPath
 
-    def __call__(self, *Args):
+    def __call__(self, *Args, **KWArgs):
         for Track in self.CD.getTrackInfo():
             File = Path.cwd() / f'track{Track.Number:02}.cdda.wav'
             print(f'Ripping to {File}')
             File.touch()
+        return MockRipper.MockProcess()
 
 def test_rip(
         tmp_path,
