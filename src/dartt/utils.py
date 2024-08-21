@@ -91,3 +91,6 @@ def menu(
             print(f'Invalid choice "{Choice}"')
             continue
         return Value
+
+def printOutputCallback(data: str):
+    print(data, end='', flush=True)
